@@ -16,33 +16,29 @@ import json
 import sys
 import time
 
-import requests
-
-from agente.herramientas import API_URL
+from agente.herramientas import _get
 from agente.prompts import DATASET
-from agente.motor_openai import CuotaAgotada
+from agente.motores import CuotaAgotada
 from agente.triaje import cubierta_por, triar
 
 MUESTRA = DATASET / "03_alertas" / "alertas_muestra_desarrollo.jsonl"
+ETIQUETA_TIPO = {"regla_interna": "regla interna", "cambio": "cambio", "rrhh": "RRHH", "linea_base": "línea base"}
 
 
 def cargar_alertas(args) -> list[dict]:
     alertas = []
     for aid in args.alert_ids:
-        r = requests.get(f"{API_URL}/alerts/{aid}", timeout=30)
-        if r.status_code == 404:
-            sys.exit(f"La alerta {aid} no existe. Revisa el ID (formato ALR-AAAAMMDD-NNNNNN, "
+        alerta, error, _ = _get(f"/alerts/{aid}")
+        if alerta is None:
+            sys.exit(f"La alerta {aid} no existe ({error}). Revisa el ID (formato ALR-AAAAMMDD-NNNNNN, "
                      f"p. ej. ALR-20261005-000301) o usa --muestra N.")
-        r.raise_for_status()
-        alertas.append(r.json())
+        alertas.append(alerta)
     if args.muestra:
         with open(MUESTRA, encoding="utf-8") as f:
             alertas += [json.loads(l) for l in f if l.strip()][args.desde:args.desde + args.muestra]
     if args.cola:
-        r = requests.get(f"{API_URL}/alerts", params={"status": "new", "limit": args.cola, "offset": args.desde},
-                         timeout=30)
-        r.raise_for_status()
-        alertas += r.json()["items"]
+        cola, _, _ = _get("/alerts", {"status": "new", "limit": args.cola, "offset": args.desde})
+        alertas += cola["items"]
     return alertas
 
 
@@ -65,8 +61,8 @@ def main():
     args = p.parse_args()
 
     if args.listar_modelos:
-        from agente import motor_openai
-        print("\n".join(motor_openai.listar_modelos()))
+        from agente import motores
+        print("\n".join(motores.listar_modelos()))
         return
 
     if args.listar_incidentes:
@@ -110,8 +106,10 @@ def main():
         print(f"    {t['title']}")
         for c in t.get("comprobaciones_internas", []):
             print(f"    {dict(permitida='✓', sospechosa='⚠', requiere_info='?', informativa='ℹ')[c['estado']]} "
-                  f"{'cambio' if c.get('tipo') == 'cambio' else 'regla interna'}: "
+                  f"{ETIQUETA_TIPO.get(c.get('tipo'), 'regla interna')}: "
                   f"{c['regla']} — {c['sujeto']}: {c['estado']}")
+        for r in t.get("relacionado_con", []):
+            print(f"    ↔ relacionado con {r['ticket_id']} (comparte {', '.join(r['entidades'][:2])})")
         for aj in t.get("ajustes_politica", []):
             print(f"    ⚖ política: {aj}")
         print(f"    {len(res['traza'])} consultas · {t['triage_seconds']} s · "

@@ -1,4 +1,4 @@
-"""Prompts construidos a partir de los documentos del SOC.
+"""[Nivel 1] Prompts construidos a partir de los documentos del SOC.
 
 - Prompt de sistema (igual para todas las alertas, cacheable): instrucciones + política + ficha de empresa.
 - Contexto de la regla (por alerta, va en el mensaje de usuario): su fila del catálogo y solo su runbook. Los otros
@@ -23,7 +23,9 @@ Revisa el calendario de cambios y las reglas internas de la ficha de empresa ant
    Si el mensaje trae <comprobaciones_internas>, son las reglas internas de la empresa ya comprobadas por código: \
 ✓ permitida (cumple la regla o la cubre un cambio aprobado), ⚠ sospechosa (la incumple), ? requiere_info (faltan datos: \
 no la des por buena y ponlo en open_questions), ℹ informativa (contexto: p. ej. hay un cambio en curso pero no cubre \
-esta alerta). Incluyen el cruce con el calendario de cambios. Úsalas como hechos y cita sus evidencias.
+esta alerta). Incluyen el cruce con el calendario de cambios, el contexto de RRHH (viajes, teletrabajo, vacaciones, \
+bajas) y las líneas base (origen habitual del usuario, prevalencia de dominios). Úsalas como hechos y cita sus \
+evidencias.
 3. Enriquece cada indicador externo (IP, dominio, URL, hash) con inteligencia y sandbox.
 4. Correlaciona: busca otras alertas y logs de las mismas entidades en ±24 h; amplía la ventana si ves indicios de una \
 cadena de días. La clave a menudo está en eventos que no aparecen en `related_events`. Si encuentras alertas del mismo \

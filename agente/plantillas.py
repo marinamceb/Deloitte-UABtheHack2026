@@ -1,4 +1,5 @@
-"""Reutilización de veredictos para alertas con un patrón idéntico (ruido repetitivo) sin volver a llamar al modelo.
+"""[Nivel 1 · optimización] Reutilización de veredictos para alertas con un patrón idéntico (ruido repetitivo) sin
+volver a llamar al modelo.
 
 Una alerta hereda el veredicto de un ticket anterior solo si:
 - su regla está en FIRMAS (reglas de ruido repetitivo donde el veredicto depende del patrón, no de la entidad) y la
@@ -7,7 +8,9 @@ Una alerta hereda el veredicto de un ticket anterior solo si:
   `patron_generalizable` (su veredicto no depende de un cambio, una fecha, una IP o una entidad), y su veredicto es
   false_positive / benign_true_positive, o true_positive bloqueado por un control (action en la firma) de severidad
   informational o low;
-- la regla de la nueva alerta no es high ni critical.
+- la regla de la nueva alerta no es high ni critical;
+- en las reglas de EXIGE_EXPLICACION (viaje imposible), la propia alerta tiene una comprobación `permitida` que la
+  explique (p. ej. el relé Private Relay del móvil corporativo, ver contexto.py).
 Lo demás se tría siempre individualmente. El ticket heredado lo dice explícitamente y deja una pregunta abierta para que
 el humano pueda revisarlo; la severidad se recalcula con la criticidad del activo de la nueva alerta.
 """
@@ -15,10 +18,10 @@ import json
 from pathlib import Path
 
 from . import herramientas as h
-from .modelos import calcular_severidad
+from .comun import de_alerta
+from .severidad import ACCIONES_BLOQUEO, calcular_severidad
 
 # Regla → campos de la evidencia que definen el patrón (excluye IDs, contadores y otros valores volátiles).
-# No se incluyen reglas cuyo veredicto depende de la entidad (p. ej. UC-IDP-001 viaje imposible: depende del usuario).
 FIRMAS = {
     "UC-EDR-002": ["parent", "user", "decoded_preview"],          # mismo comando de un agente de gestión
     "UC-WEB-001": ["rule_id", "action"],                          # misma firma WAF y mismo resultado (bloqueado)
@@ -27,8 +30,21 @@ FIRMAS = {
     "UC-NET-001": ["domain", "user_agent"],                       # mismo destino periódico y mismo cliente
     "UC-EDR-003": ["detection_name", "action", "executed"],       # misma detección y misma acción del antivirus
     "UC-AI-001": ["guardrail_category", "action", "prompt_excerpt"],
+    # Viaje imposible: el destino cambia en cada alerta, así que la firma usa el operador de la IP (ver _calculados)
+    "UC-IDP-001": ["previous_login", "device"],
 }
-ACCIONES_BLOQUEO = {"blocked", "quarantined"}
+EXIGE_EXPLICACION = {"UC-IDP-001"}  # su veredicto depende del usuario: solo hereda si una comprobación lo explica
+
+
+def _calculados(alerta: dict) -> dict:
+    """Partes de la firma que no están en la evidencia."""
+    if alerta.get("rule_id") == "UC-IDP-001":
+        from .contexto import _intel
+        ip = (alerta.get("evidence", {}).get("current_login") or {}).get("ip", "")
+        with h.origen("auto"):
+            return {"operador_destino": ((_intel(ip).get("geo") or {}).get("as_org", "")) if ip else ""}
+    return {}
+
 _INDICE: dict[str, dict] | None = None  # firma → resultado de referencia
 
 
@@ -37,7 +53,8 @@ def firma(alerta: dict) -> str | None:
     if not campos:
         return None
     ev = alerta.get("evidence", {})
-    return alerta["rule_id"] + "|" + json.dumps({c: ev.get(c) for c in campos}, ensure_ascii=False, sort_keys=True)
+    partes = {**{c: ev.get(c) for c in campos}, **_calculados(alerta)}
+    return alerta["rule_id"] + "|" + json.dumps(partes, ensure_ascii=False, sort_keys=True)
 
 
 def _es_referencia(res: dict) -> bool:
@@ -73,8 +90,10 @@ def registrar(res: dict) -> None:
         _INDICE.setdefault(f, res)
 
 
-def buscar(alerta: dict, dir_tickets: Path) -> dict | None:
+def buscar(alerta: dict, dir_tickets: Path, comprobaciones: list[dict] = ()) -> dict | None:
     if alerta.get("severity") in ("high", "critical"):
+        return None
+    if alerta.get("rule_id") in EXIGE_EXPLICACION and not any(c["estado"] == "permitida" for c in comprobaciones):
         return None
     f = firma(alerta)
     return _indice(dir_tickets).get(f) if f else None
@@ -82,21 +101,15 @@ def buscar(alerta: dict, dir_tickets: Path) -> dict | None:
 
 def heredar(alerta: dict, ref: dict) -> tuple[dict, dict]:
     """Construye el ticket de una alerta con el mismo patrón que `ref`. Devuelve (ticket sin ids/tiempos, entrada)."""
-    e = alerta.get("entities", {})
-    hosts = [x["hostname"] for x in e.get("hosts", []) if x.get("hostname")]
-    users = [x["upn"] for x in e.get("users", []) if x.get("upn")]
+    e = de_alerta(alerta)
+    hosts, users = e["hosts"], e["users"]
     entrada = dict(ref["entrada_severidad"])
     # La severidad depende del activo: se consulta la criticidad del de esta alerta (queda en la traza como "auto")
     if hosts:
-        h.ORIGEN = "auto"
-        try:
-            datos = h.consultar_activo.call({"hostname_o_ip": hosts[0]})
-        finally:
-            h.ORIGEN = "agente"
-        for nivel in ("Crítica", "Alta", "Media", "Baja"):
-            if f'"criticality": "{nivel}"' in datos:
-                entrada.update(activo_mas_critico=hosts[0], criticidad=nivel)
-                break
+        with h.origen("auto"):
+            activo, _ = h.consultar_api("activo", f"/assets/{hosts[0]}")
+        if activo and activo.get("criticality") in ("Crítica", "Alta", "Media", "Baja"):
+            entrada.update(activo_mas_critico=hosts[0], criticidad=activo["criticality"])
     rt = ref["ticket"]
     severidad, explicacion = calcular_severidad(alerta.get("severity", "medium"), {**entrada, "verdict": rt["verdict"]})
     ticket = {

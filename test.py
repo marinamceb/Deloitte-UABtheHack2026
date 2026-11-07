@@ -1,5 +1,5 @@
 import openai
-from agente import motor_openai as m
+from agente import motores as m
 try:
     r = m.cliente().chat.completions.create(model=m.MODELO, messages=[{"role": "user", "content": "di hola"}])
     print("OK:", r.choices[0].message.content)

@@ -1,7 +1,7 @@
-"""Salida estructurada del agente y cálculo de severidad.
+"""[Nivel 1] Esquema de la salida del modelo (Pydantic).
 
-El LLM rellena `TicketTriaje`. La severidad final NO la decide el modelo: aporta la criticidad del activo más crítico
-y el ajuste justificado, y `calcular_severidad` aplica la matriz de politica_soc.md. El ticket final (formato de
+El LLM rellena `TicketTriaje`. La severidad final no la decide el modelo: aporta el activo más crítico, su criticidad y
+el ajuste, y severidad.py los verifica y aplica la matriz. El ticket final (formato de
 01_contexto/ticket_salida.schema.json) lo compone triaje.py.
 """
 from typing import Literal
@@ -10,18 +10,6 @@ from pydantic import BaseModel, Field
 
 Veredicto = Literal["true_positive", "benign_true_positive", "false_positive", "needs_more_info"]
 Criticidad = Literal["Baja", "Media", "Alta", "Crítica"]
-NIVELES = ["informational", "low", "medium", "high", "critical"]
-
-# Matriz del apartado 2 de politica_soc.md: severidad de la regla × criticidad del activo/identidad
-MATRIZ = {
-    "informational": {"Baja": "informational", "Media": "informational", "Alta": "low", "Crítica": "low"},
-    "low": {"Baja": "informational", "Media": "low", "Alta": "low", "Crítica": "medium"},
-    "medium": {"Baja": "low", "Media": "medium", "Alta": "medium", "Crítica": "high"},
-    "high": {"Baja": "medium", "Media": "high", "Alta": "high", "Crítica": "critical"},
-    "critical": {"Baja": "high", "Media": "critical", "Alta": "critical", "Crítica": "critical"},
-}
-
-
 class Afectados(BaseModel):
     users: list[str]
     hosts: list[str]
@@ -77,19 +65,3 @@ class TicketTriaje(BaseModel):
     open_questions: list[str] = Field(description="Pendiente para el humano")
     patron_generalizable: bool = Field(description="true solo si el veredicto vale para cualquier alerta con la misma "
                                                    "regla y evidencia, sea cual sea la IP, entidad o fecha")
-
-
-def calcular_severidad(severidad_regla: str, t: dict) -> tuple[str, str]:
-    """Aplica la matriz y los ajustes de la política. Devuelve (severidad, explicación)."""
-    base = MATRIZ.get(severidad_regla, MATRIZ["medium"])[t["criticidad"]]
-    texto = f"Regla {severidad_regla} × {t['activo_mas_critico']} ({t['criticidad']}) = {base}"
-    if t["verdict"] == "false_positive":
-        return "informational", texto + "; falso positivo → informational"
-    if t["verdict"] == "benign_true_positive":
-        final = "low" if NIVELES.index(base) >= NIVELES.index("high") else "informational"
-        return final, texto + f"; actividad autorizada → {final}"
-    paso = int(t["ajuste"])
-    final = NIVELES[max(0, min(len(NIVELES) - 1, NIVELES.index(base) + paso))]
-    if paso:
-        texto += f"; {t['ajuste']} ({t['motivo_ajuste']}) → {final}"
-    return final, texto

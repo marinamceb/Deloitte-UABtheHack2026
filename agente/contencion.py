@@ -1,4 +1,5 @@
-"""Punto de decisión humana: el agente propone, la persona aprueba y solo entonces se llama a la API de contención."""
+"""[Nivel 4 · respuesta] Punto de decisión humana: el agente propone, la persona aprueba y solo entonces se llama a
+la API de contención."""
 import requests
 
 from .herramientas import API_URL, ahora_iso

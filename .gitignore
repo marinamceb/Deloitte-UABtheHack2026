@@ -78,3 +78,6 @@ venv/
 ENV/
 env/
 .pytest_cache/
+
+# Resultado generado por tests/evaluacion/evaluar.py
+tests/evaluacion/resultado.json

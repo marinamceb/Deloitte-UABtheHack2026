@@ -1,4 +1,5 @@
-"""Cruce determinista de alertas con el calendario de cambios aprobados (02_inventario/calendario_cambios.csv).
+"""[Nivel 2 · actividad autorizada] Cruce determinista de alertas con el calendario de cambios aprobados
+(02_inventario/calendario_cambios.csv).
 
 Cada cambio se interpreta en:
 - ventana: inicio-fin en hora local (Europe/Madrid) y, si el detalle dice «diariamente HH:MM-HH:MM», esa franja diaria;
@@ -15,21 +16,12 @@ Resultado por alerta (mismo formato de hallazgo que reglas_internas, tipo "cambi
 - sospechosa:    la alerta cita un cambio que no existe o que no está vigente en ese momento.
 Los FLUJO-* (flujos de datos) los evalúa la regla de nóminas de reglas_internas, no este módulo.
 """
-import csv
-import datetime as dt
-import ipaddress
 import json
 import re
 
 from . import herramientas as h
-from .prompts import DATASET
-from .reglas_internas import INFORMATIVA, MADRID, PERMITIDA, REQUIERE_INFO, SOSPECHOSA, _local, hallazgo
-
-with open(DATASET / "02_inventario" / "activos.csv", encoding="utf-8") as _f:
-    ACTIVOS = {r["hostname"].upper(): r for r in csv.DictReader(_f)}
-IP_A_HOST = {a["ip"]: h for h, a in ACTIVOS.items()}
-with open(DATASET / "02_inventario" / "usuarios.csv", encoding="utf-8") as _f:
-    USUARIOS = {r["username"].lower() for r in csv.DictReader(_f)}
+from .comun import (ACTIVOS, INFORMATIVA, IP_A_HOST, PERMITIDA, REQUIERE_INFO, SOSPECHOSA, de_alerta, hallazgo,
+                    local, local_desde_texto)
 
 RE_ID = re.compile(r"\b(?:CHG-\d{4}-\d+|FLUJO-\d+)\b")
 RE_IP = re.compile(r"\b((?:\d{1,3}\.){3})(\d{1,3})(?:-(\d{1,3}))?\b")
@@ -75,9 +67,9 @@ def interpretar(c: dict) -> dict:
         cuentas.add("adm.*")
     franja = RE_FRANJA.search(detalle)
     return {
-        "id": c["id"], "titulo": c.get("titulo", ""), "detalle": detalle,
-        "inicio": dt.datetime.strptime(c["inicio"], "%Y-%m-%d %H:%M").replace(tzinfo=MADRID),
-        "fin": dt.datetime.strptime(c["fin"], "%Y-%m-%d %H:%M").replace(tzinfo=MADRID),
+        "id": c["id"], "titulo": c.get("titulo", ""), "detalle": detalle, "alcance": alcance,
+        "solicitante": c.get("solicitante", ""),
+        "inicio": local_desde_texto(c["inicio"]), "fin": local_desde_texto(c["fin"]),
         "franja": tuple(int(x) for x in franja.groups()) if franja else None,
         "origen_ips": _expandir_ips(detalle),
         "origen_hosts": _expandir_hosts(detalle),
@@ -105,13 +97,20 @@ def calendario() -> list[dict]:
 
 
 def vigente(c: dict, iso: str) -> bool:
-    t = _local(iso)
+    t = local(iso)
     if not c["inicio"] <= t <= c["fin"]:
         return False
     if c["franja"]:
         h1, m1, h2, m2 = c["franja"]
         return (h1, m1) <= (t.hour, t.minute) <= (h2, m2)
     return True
+
+
+def vigentes(iso: str, *terminos: str) -> list[dict]:
+    """Cambios y flujos vigentes en ese instante cuyo título, detalle o alcance menciona alguno de los términos."""
+    def texto(c):
+        return f"{c['titulo']} {c['detalle']} {c['alcance']}".lower()
+    return [c for c in calendario() if vigente(c, iso) and any(t and t.lower() in texto(c) for t in terminos)]
 
 
 def por_id(id_cambio: str) -> dict | None:
@@ -124,20 +123,18 @@ def citados(texto: str) -> set[str]:
 
 def entidades(alerta: dict) -> dict:
     """IPs, equipos, cuentas y dominios de la alerta (entidades y campos de evidencia)."""
-    e, ev = alerta.get("entities", {}), alerta.get("evidence", {})
+    base, ev = de_alerta(alerta), alerta.get("evidence", {})
     ips = set()
-    for ip in e.get("ips", []):
-        ips |= _expandir_ips(ip) or {ip}
-    hosts = {x["hostname"].upper() for x in e.get("hosts", []) if x.get("hostname")}
+    for ip in base["ips"]:
+        ips |= _expandir_ips(ip) or {ip}   # «10.40.16.21-26» → seis IPs
+    hosts = {x.upper() for x in base["hosts"]}
     hosts |= {IP_A_HOST[ip] for ip in ips if ip in IP_A_HOST}  # IPs internas → equipo del inventario
     hosts |= {str(ev[k]).upper() for k in ("src", "dst", "from_host") if ev.get(k) and str(ev[k]).upper() in ACTIVOS}
-    cuentas = {x["upn"].split("@")[0].lower() for x in e.get("users", []) if "@" in x.get("upn", "")}
+    cuentas = {u.split("@")[0].lower() for u in base["users"]}
     cuentas |= {str(ev[k]).lower() for k in ("by", "account", "user") if ev.get(k)}
-    nube = e.get("cloud") if isinstance(e.get("cloud"), dict) else {}
-    if nube.get("identity"):
-        cuentas.add(nube["identity"].lower())
-    dominios = {d.lower() for d in e.get("domains", [])}
-    dominios |= {re.sub(r"^https?://", "", u).split("/")[0].lower() for u in e.get("urls", [])}
+    if base["cloud"].get("identity"):
+        cuentas.add(base["cloud"]["identity"].lower())
+    dominios = set(base["domains"]) | {re.sub(r"^https?://", "", u).split("/")[0].lower() for u in base["urls"]}
     origenes = {str(ev[k]).upper() for k in ("src", "from_host") if ev.get(k)}
     return {"ips": ips, "hosts": hosts, "cuentas": cuentas, "dominios": dominios, "origenes": origenes,
             "fuente": alerta.get("source_product", ""), "texto": json.dumps(ev, ensure_ascii=False)}
@@ -202,7 +199,8 @@ def evaluar(alerta: dict, ya_evaluados: set[str] = frozenset()) -> list[dict]:
                                     [alerta["alert_id"], id_cambio], tipo="cambio"))
 
     for c in calendario():
-        if c["id"] in cita or c["id"] in ya_evaluados or c["id"].startswith("FLUJO-") or not vigente(c, alerta["created_at"]):
+        ya_visto = c["id"] in cita or c["id"] in ya_evaluados or c["id"].startswith("FLUJO-")
+        if ya_visto or not vigente(c, alerta["created_at"]):
             continue
         def_origen, origen_ok = _origen(c, ent)
         def_alcance, alcance_ok, fuera = _alcance(c, ent)
@@ -221,5 +219,6 @@ def evaluar(alerta: dict, ya_evaluados: set[str] = frozenset()) -> list[dict]:
 
 
 def ids_que_cubren(alerta: dict) -> set[str]:
-    """Cambios que cubren la alerta por origen autorizado (para agrupar en un único incidente autorizado)."""
-    return {r["sujeto"] for r in evaluar(alerta) if r["estado"] == PERMITIDA and r["regla"] == "Cambio aprobado vigente"}
+    """Cambios que cubren la alerta (origen autorizado, o citado por la alerta con ventana y alcance verificados), para
+    agruparla en un único incidente autorizado."""
+    return {r["sujeto"] for r in evaluar(alerta) if r["estado"] == PERMITIDA}

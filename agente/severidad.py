@@ -1,4 +1,5 @@
-"""Criticidad real y ajuste de la matriz de severidad (politica_soc.md, apartado 2), calculados por código.
+"""[Nivel 2 · matriz con criticidad real] Criticidad real y ajuste de la matriz de severidad (politica_soc.md,
+apartado 2), calculados por código.
 
 El modelo propone el activo más crítico, su criticidad y el ajuste; aquí se recalculan con el inventario:
 - Criticidad = la más alta entre los equipos afectados (CMDB), los servicios de negocio afectados
@@ -10,47 +11,58 @@ El modelo propone el activo más crítico, su criticidad y el ajuste; aquí se r
 - Ajuste +1 por identidad VIP o privilegiada afectada (directorio), en verdaderos positivos.
 Si no hay ningún dato de inventario, se conserva la propuesta del modelo. Cada corrección se devuelve como nota.
 """
-import csv
-
 from . import herramientas as h
-from .prompts import DATASET
+from .comun import fusionar, servicio as _servicio
 
 ORDEN = ["Baja", "Media", "Alta", "Crítica"]
-BLOQUEO = {"blocked", "quarantined", "bloqueado", "en cuarentena"}
 
-with open(DATASET / "02_inventario" / "servicios_negocio.csv", encoding="utf-8") as _f:
-    SERVICIOS = list(csv.DictReader(_f))
+# =============================================================================================== matriz (apartado 2)
+
+NIVELES = ["informational", "low", "medium", "high", "critical"]
+ACCIONES_BLOQUEO = {"blocked", "quarantined", "bloqueado", "en cuarentena"}  # control que impidió el efecto
+
+# Matriz del apartado 2 de politica_soc.md: severidad de la regla × criticidad del activo/identidad
+MATRIZ = {
+    "informational": {"Baja": "informational", "Media": "informational", "Alta": "low", "Crítica": "low"},
+    "low": {"Baja": "informational", "Media": "low", "Alta": "low", "Crítica": "medium"},
+    "medium": {"Baja": "low", "Media": "medium", "Alta": "medium", "Crítica": "high"},
+    "high": {"Baja": "medium", "Media": "high", "Alta": "high", "Crítica": "critical"},
+    "critical": {"Baja": "high", "Media": "critical", "Alta": "critical", "Crítica": "critical"},
+}
 
 
-def _servicio(nombre_o_recurso: str) -> dict | None:
-    """Servicio de negocio por nombre (prefijo, la CMDB añade texto) o por recurso listado en `activos`."""
-    x = nombre_o_recurso.lower().strip()
-    if not x:
-        return None
-    for s in SERVICIOS:
-        if x.startswith(s["servicio"].lower()) or s["servicio"].lower().startswith(x):
-            return s
-    for s in SERVICIOS:
-        if x in s["activos"].lower():
-            return s
-    return None
+def calcular_severidad(severidad_regla: str, t: dict) -> tuple[str, str]:
+    """Aplica la matriz y los ajustes de la política. Devuelve (severidad, explicación)."""
+    base = MATRIZ.get(severidad_regla, MATRIZ["medium"])[t["criticidad"]]
+    texto = f"Regla {severidad_regla} × {t['activo_mas_critico']} ({t['criticidad']}) = {base}"
+    if t["verdict"] == "false_positive":
+        return "informational", texto + "; falso positivo → informational"
+    if t["verdict"] == "benign_true_positive":
+        final = "low" if NIVELES.index(base) >= NIVELES.index("high") else "informational"
+        return final, texto + f"; actividad autorizada → {final}"
+    paso = int(t["ajuste"])
+    final = NIVELES[max(0, min(len(NIVELES) - 1, NIVELES.index(base) + paso))]
+    if paso:
+        texto += f"; {t['ajuste']} ({t['motivo_ajuste']}) → {final}"
+    return final, texto
+
+
+# ==================== criticidad real y ajustes
 
 
 def _bloqueada(alerta: dict) -> bool:
     ev = alerta.get("evidence", {})
     acciones = {str(ev.get(k, "")).lower() for k in ("action", "edr_action", "dlp_action")}
-    return bool(acciones & BLOQUEO) or ev.get("executed") is False
+    return bool(acciones & ACCIONES_BLOQUEO) or ev.get("executed") is False
 
 
 def revisar(t: dict, alertas: list[dict]) -> tuple[dict, list[str]]:
     """Devuelve la salida del modelo con criticidad/ajuste corregidos y las notas de lo que se cambió."""
     notas: list[str] = []
     candidatos: list[tuple[str, str, str]] = []  # (criticidad, objeto, fuente)
-    origen_previo = h.ORIGEN
-    h.ORIGEN = "politica"
-    try:
-        hosts = list(dict.fromkeys(t["affected"].get("hosts", []) + [
-            x["hostname"] for a in alertas for x in a.get("entities", {}).get("hosts", []) if x.get("hostname")]))
+    e = fusionar(alertas) if alertas else {"hosts": [], "users": [], "cloud": {}}
+    with h.origen("politica"):
+        hosts = list(dict.fromkeys(t["affected"].get("hosts", []) + e["hosts"]))
         for host in hosts:
             activo, _ = h.consultar_api("activo", f"/assets/{host}")
             if activo and activo.get("criticality") in ORDEN:
@@ -69,8 +81,7 @@ def revisar(t: dict, alertas: list[dict]) -> tuple[dict, list[str]]:
                 if s and s["criticidad"] in ORDEN:
                     candidatos.append((s["criticidad"], f"s3://{nube['bucket']} ({s['servicio']})", "servicios_negocio"))
 
-        usuarios = list(dict.fromkeys(t["affected"].get("users", []) + [
-            x["upn"] for a in alertas for x in a.get("entities", {}).get("users", []) if "@" in x.get("upn", "")]))
+        usuarios = list(dict.fromkeys(t["affected"].get("users", []) + e["users"]))
         privilegiados = []
         for upn in usuarios:
             u, _ = h.consultar_api("usuario", f"/users/{upn}")
@@ -78,8 +89,6 @@ def revisar(t: dict, alertas: list[dict]) -> tuple[dict, list[str]]:
                 candidatos.append(("Media", upn, "identidad"))
                 if u.get("privileged") == "True" or u.get("vip") == "True":
                     privilegiados.append(f"{upn} ({'VIP' if u.get('vip') == 'True' else 'privilegiada'})")
-    finally:
-        h.ORIGEN = origen_previo
 
     t = dict(t)
     if candidatos:

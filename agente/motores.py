@@ -1,11 +1,11 @@
-"""Motor para APIs compatibles con OpenAI (Gemini por defecto; también Groq, OpenRouter u Ollama cambiando la URL).
+"""[Nivel 1] Conexión con el LLM. Dos motores con la misma interfaz `ejecutar(sistema, mensaje, effort, max_iter)`,
+que devuelven {"ticket", "motivo", "uso", "razonamiento", "modelo"}. El proveedor se elige con TRIAJE_PROVEEDOR:
 
-Diferencias con el motor Claude:
-- El bucle de herramientas está escrito a mano.
-- El ticket se entrega llamando a la herramienta `emitir_ticket`; se valida con Pydantic y, si no es válido, se le
-  devuelve el error al modelo para que lo corrija.
-- Los planes gratuitos tienen límites por minuto y por día: ante un 429 por minuto se espera lo que indica el
-  proveedor; ante la cuota diaria agotada se lanza CuotaAgotada para parar el lote (no es un fallo de triaje).
+- gemini (por defecto), groq, openrouter, ollama: API compatible con OpenAI. Bucle de herramientas escrito a mano; el
+  ticket se entrega llamando a la herramienta `emitir_ticket`, se valida con Pydantic y, si no es válido, se le
+  devuelve el error al modelo. Los planes gratuitos limitan peticiones por minuto y por día: ante un 429 por minuto se
+  espera lo que indica el proveedor; ante la cuota diaria agotada se lanza CuotaAgotada para parar el lote.
+- anthropic: SDK de Anthropic con el tool runner y el ticket como salida estructurada (output_format).
 """
 import json
 import os
@@ -18,20 +18,86 @@ from pydantic import ValidationError
 from . import herramientas
 from .modelos import TicketTriaje
 
-PROVEEDORES = {
+PROVEEDORES = {  # proveedor → (URL compatible con OpenAI, variable con la clave, modelo por defecto)
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai/", "GEMINI_API_KEY", "gemini-3.5-flash"),
     "groq": ("https://api.groq.com/openai/v1", "GROQ_API_KEY", ""),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", ""),
     "ollama": ("http://localhost:11434/v1", "", ""),
+    "anthropic": ("", "ANTHROPIC_API_KEY", "claude-opus-5-5"),
 }
 PROVEEDOR = os.environ.get("TRIAJE_PROVEEDOR", "gemini")
 _URL, _VAR_CLAVE, _MODELO_DEF = PROVEEDORES[PROVEEDOR]
 MODELO = os.environ.get("TRIAJE_MODELO", _MODELO_DEF)
 # Peticiones por minuto permitidas. El plan gratuito de Gemini da 5 RPM: se espacian las llamadas para no recibir 429.
 RPM = float(os.environ.get("TRIAJE_RPM", "5" if PROVEEDOR == "gemini" else "0"))
-_client = None
-_ultima_peticion = 0.0
 
+
+def ejecutar(sistema: str, mensaje: str, effort: str, max_iteraciones: int) -> dict:
+    if PROVEEDOR == "anthropic":
+        return _ejecutar_claude(sistema, mensaje, effort, max_iteraciones)
+    return _ejecutar_openai(sistema, mensaje, effort, max_iteraciones)
+
+
+# =============================================================================================== Claude (Anthropic)
+
+_cliente_claude = None
+
+
+def _ejecutar_claude(sistema: str, mensaje: str, effort: str, max_iteraciones: int) -> dict:
+    global _cliente_claude
+    import anthropic
+    if _cliente_claude is None:
+        _cliente_claude = anthropic.Anthropic()
+    extra = {}
+    if not MODELO.startswith("claude-haiku"):
+        # Si un clasificador de seguridad rechaza (el contenido SOC puede parecer ofensivo), reintenta en otro modelo.
+        # Haiku no admite fallbacks en servidor.
+        extra = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
+
+    runner = _cliente_claude.beta.messages.tool_runner(
+        model=MODELO,
+        max_tokens=16000,
+        system=sistema,
+        cache_control={"type": "ephemeral"},
+        tools=herramientas.HERRAMIENTAS,
+        messages=[{"role": "user", "content": mensaje}],
+        output_format=TicketTriaje,
+        output_config={"effort": effort},
+        max_iterations=max_iteraciones,
+        **extra,
+    )
+
+    uso = {"input_tokens": 0, "output_tokens": 0, "cache_read_input_tokens": 0, "llamadas_modelo": 0}
+    razonamiento: list[str] = []
+    final = None
+    for msg in runner:
+        final = msg
+        uso["llamadas_modelo"] += 1
+        for k in ("input_tokens", "output_tokens", "cache_read_input_tokens"):
+            uso[k] += getattr(msg.usage, k, 0) or 0
+        if msg.stop_reason == "tool_use":
+            razonamiento += [b.text.strip() for b in msg.content if b.type == "text" and b.text.strip()]
+
+    out = {"ticket": None, "motivo": "", "uso": uso, "razonamiento": razonamiento,
+           "modelo": getattr(final, "model", MODELO)}
+    if final is None:
+        out["motivo"] = "sin respuesta del modelo"
+    elif final.stop_reason == "refusal":
+        cat = final.stop_details.category if final.stop_details else None
+        out["motivo"] = f"el modelo rechazó la petición (categoría: {cat})"
+    elif final.stop_reason == "tool_use":
+        out["motivo"] = f"se alcanzó el máximo de {max_iteraciones} iteraciones"
+    elif getattr(final, "parsed_output", None) is None:
+        out["motivo"] = f"salida no válida (stop_reason={final.stop_reason})"
+    else:
+        out["ticket"] = final.parsed_output.model_dump()
+    return out
+
+
+# ==================== compatibles con OpenAI (Gemini...)
+
+_cliente_openai = None
+_ultima_peticion = 0.0
 
 
 class CuotaAgotada(Exception):
@@ -43,16 +109,16 @@ CIERRE = ("Cuando hayas terminado de investigar, entrega el resultado llamando a
 
 
 def cliente() -> openai.OpenAI:
-    global _client
-    if _client is None:
+    global _cliente_openai
+    if _cliente_openai is None:
         clave = os.environ.get(_VAR_CLAVE, "") if _VAR_CLAVE else "ollama"
         if not clave:
             raise SystemExit(f"Falta la variable de entorno {_VAR_CLAVE} para el proveedor '{PROVEEDOR}'.")
         if not MODELO:
             raise SystemExit(f"Indica el modelo con TRIAJE_MODELO para el proveedor '{PROVEEDOR}'.")
         # Los 429 se gestionan en _llamar (distinguir límite por minuto de cuota diaria); el SDK solo reintenta red/5xx
-        _client = openai.OpenAI(base_url=_URL, api_key=clave, max_retries=2, timeout=90)
-    return _client
+        _cliente_openai = openai.OpenAI(base_url=_URL, api_key=clave, max_retries=2, timeout=90)
+    return _cliente_openai
 
 
 def _respetar_rpm() -> None:
@@ -117,7 +183,7 @@ def _herramientas_openai() -> list[dict]:
     return tools
 
 
-def ejecutar(sistema: str, mensaje: str, effort: str, max_iteraciones: int) -> dict:
+def _ejecutar_openai(sistema: str, mensaje: str, effort: str, max_iteraciones: int) -> dict:
     por_nombre = {t.name: t for t in herramientas.HERRAMIENTAS}
     tools = _herramientas_openai()
     mensajes = [{"role": "system", "content": sistema + "\n\n" + CIERRE}, {"role": "user", "content": mensaje}]

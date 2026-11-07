@@ -1,4 +1,4 @@
-"""Agrupación determinista de alertas en incidentes candidatos, antes de llamar al modelo.
+"""[Nivel 2 · correlación] Agrupación determinista de alertas en incidentes candidatos, antes de llamar al modelo.
 
 1. Se aparta el ruido de fondo: alertas cuyo patrón (regla + campos estables de la evidencia, ver PATRONES_RUIDO) se
    repite >= UMBRAL_RUIDO veces en todo el SIEM. Ese ruido lo resuelven las plantillas; si se usara para enlazar,
@@ -7,20 +7,24 @@
    identidad cloud) con menos de VENTANA_H horas entre una y la siguiente (enlace en cadena: un incidente puede durar
    días). Las entidades que aparecen en más de MAX_ALERTAS_ENTIDAD alertas (concentradores como wetransfer.com o
    la IP de salida corporativa) no enlazan.
-   Las alertas cubiertas por el mismo cambio aprobado (por origen autorizado, ver cambios.py) se enlazan siempre:
-   son una única actividad autorizada (p. ej. las alertas del pentest desde tres IPs).
+   Las entidades «fuertes» (hash, IP o dominio maliciosos según el TIP, cuenta que incumple una regla interna)
+   enlazan hasta VENTANA_FUERTE_H horas: identifican al atacante aunque el ataque dure días (ransomware del 9/10 y su
+   persistencia del 18/10 con la misma cuenta y el mismo malware).
+   Las alertas cubiertas por un cambio aprobado (por origen autorizado, ver cambios.py) nunca son ruido y solo se
+   enlazan a través de su cambio: forman una única actividad autorizada (p. ej. las 20 alertas del pentest desde
+   tres IPs) y no se mezclan con un ataque que comparta entidades (la sesión autorizada de ext.logisoft del 16/10).
 3. Las componentes conexas son los incidentes candidatos. El modelo los revisa y confirma qué alertas pertenecen al
    mismo ataque; el código solo propone.
-
-Calibrado sobre el dataset: 10.585 alertas de ruido; de las 476 restantes, 116 se agrupan en 28 incidentes.
+Además, `tickets_relacionados` avisa al crear un ticket si alguna de sus entidades fuertes ya está en otro ticket.
 """
 import collections
-import datetime as dt
 import json
+import re
+from functools import lru_cache
+from pathlib import Path
 
-import requests
-
-from .herramientas import API_URL
+from . import herramientas as h
+from .comun import de_alerta, es_interna, utc
 from .plantillas import FIRMAS
 
 PATRONES_RUIDO = {
@@ -29,8 +33,10 @@ PATRONES_RUIDO = {
     "UC-IDP-001": ["previous_login", "minutes_between", "device", "distance_km", "note", "post_login_actions"],
 }
 UMBRAL_RUIDO = 20
-VENTANA_H = 72
-MAX_ALERTAS_ENTIDAD = 15
+VENTANA_H = 72                  # equipos, usuarios y demás entidades
+VENTANA_FUERTE_H = 14 * 24      # entidades fuertes
+MAX_ALERTAS_ENTIDAD = 15        # más alertas = concentrador (no enlaza)
+MAX_ALERTAS_FUERTE = 50
 
 _ALERTAS: dict[str, dict] | None = None
 _INCIDENTES: dict[str, list[str]] | None = None  # alert_id → alert_ids del incidente (ordenados por fecha)
@@ -39,9 +45,10 @@ _INCIDENTES: dict[str, list[str]] | None = None  # alert_id → alert_ids del in
 def todas_las_alertas() -> dict[str, dict]:
     global _ALERTAS
     if _ALERTAS is None:
-        r = requests.get(f"{API_URL}/alerts", params={"status": "new", "limit": 100000}, timeout=120)
-        r.raise_for_status()
-        _ALERTAS = {a["alert_id"]: a for a in r.json()["items"]}
+        datos, error, _ = h._get("/alerts", {"status": "new", "limit": 100000})
+        if datos is None:
+            raise RuntimeError(f"No se pudieron cargar las alertas: {error}")
+        _ALERTAS = {a["alert_id"]: a for a in datos["items"]}
     return _ALERTAS
 
 
@@ -54,24 +61,68 @@ def _patron(a: dict) -> str | None:
 
 
 def entidades(a: dict) -> set[str]:
-    e = a.get("entities", {})
-    out = set()
-    for x in e.get("hosts", []):
-        if x.get("hostname"):
-            out.add("host:" + x["hostname"].lower())
-    for x in e.get("users", []):
-        if "@" in x.get("upn", ""):  # descarta marcadores como "(12 cuentas)"
-            out.add("user:" + x["upn"].lower())
-    out |= {"ip:" + ip for ip in e.get("ips", [])}
-    out |= {"dom:" + d.lower() for d in e.get("domains", [])}
-    out |= {"hash:" + f["sha256"] for f in e.get("files", []) if f.get("sha256")}
-    nube = e.get("cloud") if isinstance(e.get("cloud"), dict) else {}
-    out |= {"cloud:" + nube[k] for k in ("identity", "bucket") if nube.get(k)}
-    return out
+    """Entidades de enlace con prefijo de tipo (host:, user:, ip:, dom:, hash:, cloud:)."""
+    e = de_alerta(a)
+    return ({"host:" + x.lower() for x in e["hosts"]} | {"user:" + x.lower() for x in e["users"]}
+            | {"ip:" + x for x in e["ips"]} | {"dom:" + x for x in e["domains"]} | {"hash:" + x for x in e["hashes"]}
+            | {"cloud:" + e["cloud"][k] for k in ("identity", "bucket") if e["cloud"].get(k)})
 
 
-def _fecha(a: dict) -> dt.datetime:
-    return dt.datetime.fromisoformat(a["created_at"].replace("Z", "+00:00"))
+def _fecha(a: dict):
+    return utc(a["created_at"])
+
+
+@lru_cache(maxsize=1)
+def _cubiertas() -> dict[str, frozenset[str]]:
+    """alert_id → cambios aprobados que la cubren por origen autorizado (solo las que tienen alguno)."""
+    from . import cambios
+    return {i: frozenset(c) for i, a in todas_las_alertas().items() if (c := cambios.ids_que_cubren(a))}
+
+
+def _senal() -> list[dict]:
+    """Alertas que no son ruido de fondo (las cubiertas por un cambio aprobado nunca lo son)."""
+    alertas = todas_las_alertas().values()
+    frec = collections.Counter(p for a in alertas if (p := _patron(a)))
+    return [a for a in alertas if a["alert_id"] in _cubiertas()
+            or not ((p := _patron(a)) and frec[p] >= UMBRAL_RUIDO)]
+
+
+@lru_cache(maxsize=1)
+def cuentas_sospechosas() -> frozenset[str]:
+    """Cuentas con un resultado `sospechosa`: reglas internas de cuentas (adm.*, ext.*, svc_*) o RRHH (cuenta usada
+    tras el último día, fuga antes de la baja)."""
+    from . import contexto
+    from . import reglas_internas as R
+    patron = re.compile(r"\b(?:adm\.[a-z0-9_.-]+|ext\.[a-z0-9_.-]+|svc_[a-z0-9_]+)")
+    cuentas = set()
+    with h.origen("incidentes"):
+        for a in _senal():
+            if patron.search(json.dumps(a)):
+                for r in R.regla_cuentas_adm([a]) + R.regla_logisoft([a]) + R.regla_svc_backup([a]):
+                    if r["estado"] == R.SOSPECHOSA:
+                        cuentas |= set(patron.findall(r["sujeto"]))
+            if de_alerta(a)["users"]:
+                cuentas |= {r["sujeto"].split("@")[0] for r in contexto.rrhh([a]) if r["estado"] == R.SOSPECHOSA}
+    return frozenset(cuentas)
+
+
+@lru_cache(maxsize=4096)
+def _es_fuerte(x: str) -> bool:
+    tipo, valor = x.split(":", 1)
+    if tipo == "hash":
+        return True
+    if tipo == "user":
+        return valor.split("@")[0] in cuentas_sospechosas()
+    if (tipo == "ip" and not es_interna(valor)) or tipo == "dom":
+        from .contexto import _intel
+        with h.origen("incidentes"):
+            return ((_intel(valor).get("tip") or {}).get("reputation")) == "malicious"
+    return False
+
+
+def entidades_fuertes(a: dict) -> set[str]:
+    """[Nivel 2] Hash, IP o dominio maliciosos según el TIP, o cuenta que incumple una regla interna."""
+    return {x for x in entidades(a) if _es_fuerte(x)}
 
 
 def construir() -> dict[str, list[str]]:
@@ -79,10 +130,10 @@ def construir() -> dict[str, list[str]]:
     if _INCIDENTES is not None:
         return _INCIDENTES
     alertas = todas_las_alertas()
-    frec_patron = collections.Counter(p for a in alertas.values() if (p := _patron(a)))
-    senal = [a for a in alertas.values() if not ((p := _patron(a)) and frec_patron[p] >= UMBRAL_RUIDO)]
-    from . import cambios
-    ent_alerta = {a["alert_id"]: entidades(a) | {"chg:" + c for c in cambios.ids_que_cubren(a)} for a in senal}
+    senal = _senal()
+    cubiertas = _cubiertas()
+    ent_alerta = {a["alert_id"]: {"chg:" + c for c in cubiertas[a["alert_id"]]} if a["alert_id"] in cubiertas
+                  else entidades(a) for a in senal}
     frec_ent = collections.Counter(x for a in senal for x in ent_alerta[a["alert_id"]])
 
     padre = {a["alert_id"]: a["alert_id"] for a in senal}
@@ -93,15 +144,23 @@ def construir() -> dict[str, list[str]]:
             x = padre[x]
         return x
 
+    def limites(x: str) -> tuple[float, int]:
+        """(ventana en horas, máximo de alertas) con que enlaza una entidad."""
+        if x.startswith("chg:"):
+            return float("inf"), 10 ** 6
+        return (VENTANA_FUERTE_H, MAX_ALERTAS_FUERTE) if _es_fuerte(x) else (VENTANA_H, MAX_ALERTAS_ENTIDAD)
+
     por_entidad = collections.defaultdict(list)
     for a in senal:
         for x in ent_alerta[a["alert_id"]]:
-            if x.startswith("chg:") or frec_ent[x] <= MAX_ALERTAS_ENTIDAD:
-                por_entidad[x].append(a)
+            por_entidad[x].append(a)
     for x, lista in por_entidad.items():
+        ventana_h, maximo = limites(x)
+        if frec_ent[x] > maximo:
+            continue
         lista.sort(key=_fecha)
         for p, q in zip(lista, lista[1:]):
-            if x.startswith("chg:") or (_fecha(q) - _fecha(p)).total_seconds() <= VENTANA_H * 3600:
+            if (_fecha(q) - _fecha(p)).total_seconds() <= ventana_h * 3600:
                 padre[raiz(p["alert_id"])] = raiz(q["alert_id"])
 
     grupos = collections.defaultdict(list)
@@ -132,6 +191,26 @@ def resumen(alert_ids: list[str], excluir: str = "", maximo: int = 12) -> str:
     if len(otras) > maximo:
         lineas.append(f"(y {len(otras) - maximo} alertas más de menor severidad; consúltalas con consultar_alerta)")
     return "\n".join(lineas)
+
+
+def tickets_relacionados(alert_ids: list[str], dir_tickets: Path, ticket_id: str) -> list[dict]:
+    """[Nivel 2] Otros tickets que comparten alguna entidad fuerte con estas alertas (posible mismo ataque)."""
+    todas = todas_las_alertas()
+
+    def fuertes(ids) -> set[str]:
+        return set().union(*(entidades_fuertes(todas[i]) for i in ids if i in todas))
+
+    mias, out = fuertes(alert_ids), []
+    for p in sorted(dir_tickets.glob("TKT-*.json")) if mias else []:
+        if p.stem == ticket_id:
+            continue
+        try:
+            otros = json.loads(p.read_text(encoding="utf-8"))["ticket"]["alert_ids"]
+        except (json.JSONDecodeError, KeyError):
+            continue
+        if comunes := mias & fuertes(otros):
+            out.append({"ticket_id": p.stem, "entidades": sorted(comunes)})
+    return out
 
 
 def listar() -> list[list[str]]:

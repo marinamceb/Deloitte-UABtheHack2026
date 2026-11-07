@@ -1,13 +1,16 @@
-"""Herramientas de solo lectura que el agente usa para investigar, todas contra la API simulada del SOC.
+"""[Nivel 1 · investigar] Acceso a la API simulada del SOC y herramientas de solo lectura del modelo.
 
+- Infraestructura compartida: `_get` (HTTP), `consultar_api` (lectura con traza, para código determinista),
+  `buscar_eventos` / `buscar_alertas` (búsqueda por identificador completo) y el registro TRAZA con su `origen`.
+- Herramientas del modelo (@beta_tool): la salida va delimitada como datos no confiables.
 Ninguna herramienta ejecuta contención: el agente solo propone; ejecutar es una decisión humana (ver contencion.py).
-Cada llamada queda registrada en TRAZA para que la demo pueda enseñar qué consultó la IA.
 """
 import datetime as dt
 import json
 import os
 import re
 import time
+from contextlib import contextmanager
 
 import requests
 from anthropic import beta_tool
@@ -19,18 +22,68 @@ FUENTES_LOG = [
     "email", "email_clicks", "firewall", "idp_audit", "idp_signins", "proxy", "sql_audit", "vpn", "waf",
 ]
 
+# --------------------------------------------------------------------------------------------- traza
+
 TRAZA: list[dict] = []  # se reinicia por alerta desde triaje.py
-ORIGEN = "agente"  # "auto" mientras corre la investigación previa (preinvestigacion.py); queda en la traza
+ORIGEN = "agente"       # quién hace la consulta: agente (modelo), auto (investigación previa), reglas, politica
 
 
-# Misma regla que coincide_identificador() en mock_soc_api.py (mantener ambas iguales). La API filtra con ella; aquí
-# se vuelve a aplicar como red de seguridad por si se usa la versión original de la API, que busca subcadenas.
+@contextmanager
+def origen(nombre: str):
+    """Marca con `nombre` las consultas hechas dentro del bloque (y restaura el origen anterior)."""
+    global ORIGEN
+    previo, ORIGEN = ORIGEN, nombre
+    try:
+        yield
+    finally:
+        ORIGEN = previo
+
+
+def _registrar(nombre: str, args: dict, ms: int, chars: int, error: str | None, preview: str = "") -> None:
+    TRAZA.append({"tool": nombre, "args": args, "origen": ORIGEN, "ms": ms, "chars": chars, "error": error,
+                  "preview": preview})
+
+
+# --------------------------------------------------------------------------------------------- API
+
+def _get(ruta: str, params: dict | None = None):
+    """GET a la API. Devuelve (datos, error, ms); un 404 es un resultado (p. ej. activo no gestionado), no una excepción."""
+    t0 = time.time()
+    try:
+        r = requests.get(f"{API_URL}{ruta}", params={k: v for k, v in (params or {}).items() if v not in ("", None)},
+                         timeout=120)
+    except requests.ConnectionError:
+        raise RuntimeError(f"La API simulada no responde en {API_URL}. ¿Está arrancada?")
+    ms = int((time.time() - t0) * 1000)
+    if r.status_code == 404:
+        es_json = r.headers.get("content-type", "").startswith("application/json")
+        return None, f"404: {r.json().get('detail', 'no encontrado') if es_json else 'no encontrado'}", ms
+    r.raise_for_status()
+    return r.json(), None, ms
+
+
+def consultar_api(nombre: str, ruta: str, params: dict | None = None):
+    """Lectura para código determinista (reglas, política...). Devuelve (datos, error) y queda en la traza."""
+    try:
+        d, e, ms = _get(ruta, params)
+    except RuntimeError as exc:
+        d, e, ms = None, str(exc), 0
+    _registrar(nombre, {"ruta": ruta, **{k: v for k, v in (params or {}).items() if v}}, ms,
+               len(json.dumps(d, ensure_ascii=False)) if d is not None else 0, e)
+    return d, e
+
+
+# --------------------------------------------------------------------------------------------- búsqueda exacta
+# La API original busca subcadenas ('198.18.58.15' también devuelve '198.18.58.157'). Aquí se exige el identificador
+# completo y, si la API devuelve coincidencias parciales, se piden más resultados y se filtran localmente.
+
 _ID = r"0-9A-Za-z_\-"
 
 
 def _coincide(texto: str, obj) -> bool:
     """True si `texto` aparece en `obj` como identificador completo: '198.18.58.15' no casa con '198.18.58.157' ni
-    'WS-BCN-1174' con 'WS-BCN-11740' o 'WS-BCN-1174-B'."""
+    'WS-BCN-1174' con 'WS-BCN-11740' o 'WS-BCN-1174-B'. Son parte de un identificador las letras, cifras, «_», «-» y
+    el «.» seguido de otro de esos caracteres; los límites solo se exigen en los extremos que son de identificador."""
     if not texto:
         return True
     cadena = json.dumps(obj, ensure_ascii=False)
@@ -44,47 +97,52 @@ def _coincide(texto: str, obj) -> bool:
     return re.search(patron, cadena, re.IGNORECASE) is not None
 
 
-def _get(ruta: str, params: dict | None = None):
-    t0 = time.time()
-    try:
-        r = requests.get(f"{API_URL}{ruta}", params={k: v for k, v in (params or {}).items() if v not in ("", None)},
-                         timeout=60)
-    except requests.ConnectionError:
-        raise RuntimeError(f"La API simulada no responde en {API_URL}. ¿Está arrancada?")
-    ms = int((time.time() - t0) * 1000)
-    if r.status_code == 404:
-        detalle = r.json().get("detail", "no encontrado") if r.headers.get("content-type", "").startswith("application/json") else "no encontrado"
-        return None, f"404: {detalle}", ms
-    r.raise_for_status()
-    return r.json(), None, ms
+def buscar_eventos(fuente: str, texto: str, desde: str = "", hasta: str = "", limit: int = 200):
+    """Eventos de una fuente que contienen `texto` como identificador completo.
+    Devuelve ({"count", "truncated", "items"} | None, error, ms)."""
+    params = {"q": texto, "desde": desde, "hasta": hasta}
+    d, e, ms = _get(f"/logs/{fuente}", {**params, "limit": limit})
+    if d is not None and not all(_coincide(texto, x) for x in d["items"]):
+        d, e, ms2 = _get(f"/logs/{fuente}", {**params, "limit": 2000})
+        ms += ms2
+        if d is not None:
+            items = [x for x in d["items"] if _coincide(texto, x)]
+            d = {"count": min(len(items), limit), "truncated": len(items) > limit or d["truncated"],
+                 "items": items[:limit]}
+    return d, e, ms
 
+
+def eventos(fuente: str, texto: str, desde: str = "", hasta: str = "", limit: int = 500) -> list[dict]:
+    """Eventos de una fuente con búsqueda exacta, para código determinista; la consulta queda en la traza."""
+    d, e, ms = buscar_eventos(fuente, texto, desde, hasta, limit)
+    _registrar(f"logs:{fuente}", {"q": texto, "desde": desde, "hasta": hasta}, ms, (d or {}).get("count", 0), e)
+    return (d or {}).get("items", [])
+
+
+def buscar_alertas(texto: str, desde: str = "", hasta: str = "", limit: int = 30):
+    """Alertas que contienen `texto` como identificador completo. Devuelve ({"total", "items"} | None, error, ms)."""
+    params = {"status": "new", "desde": desde, "hasta": hasta}
+    d, e, ms = _get("/alerts", {**params, "q": texto, "limit": limit})
+    if d is not None and not all(_coincide(texto, a) for a in d["items"]):
+        d, e, ms2 = _get("/alerts", {**params, "limit": 100000})  # la API original ignora q
+        ms += ms2
+        if d is not None:
+            items = [a for a in d["items"] if _coincide(texto, a)]
+            d = {"total": len(items), "items": items[:limit]}
+    return d, e, ms
+
+
+# --------------------------------------------------------------------------------------------- herramientas del modelo
 
 def _salida(nombre: str, args: dict, datos, error: str | None, ms: int) -> str:
-    if error:
-        texto = error
-    else:
-        texto = json.dumps(datos, ensure_ascii=False)
+    texto = error or json.dumps(datos, ensure_ascii=False)
     total = len(texto)
     if total > MAX_CHARS:
         texto = texto[:MAX_CHARS] + (f"\n[RECORTADO: se muestran {MAX_CHARS} de {total} caracteres. "
                                      "Afina la búsqueda con un texto más concreto o una ventana de tiempo menor.]")
-    TRAZA.append({"tool": nombre, "args": args, "origen": ORIGEN, "ms": ms, "chars": total, "error": error,
-                  "preview": texto[:300]})
+    _registrar(nombre, args, ms, total, error, texto[:300])
     # Delimitar los datos: su contenido puede haberlo escrito el atacante y nunca son instrucciones.
     return f"<datos_no_confiables herramienta=\"{nombre}\">\n{texto}\n</datos_no_confiables>"
-
-
-def consultar_api(nombre: str, ruta: str, params: dict | None = None):
-    """Consulta directa a la API para código determinista (reglas internas). Devuelve (datos, error) y queda en la
-    traza con el ORIGEN actual. No es una herramienta del modelo."""
-    try:
-        d, e, ms = _get(ruta, params)
-    except RuntimeError as exc:
-        d, e, ms = None, str(exc), 0
-    TRAZA.append({"tool": nombre, "args": {"ruta": ruta, **{k: v for k, v in (params or {}).items() if v}},
-                  "origen": ORIGEN, "ms": ms, "chars": len(json.dumps(d, ensure_ascii=False)) if d is not None else 0,
-                  "error": e, "preview": ""})
-    return d, e
 
 
 @beta_tool
@@ -94,8 +152,7 @@ def consultar_alerta(alert_id: str) -> str:
     Args:
         alert_id: p. ej. ALR-20261005-000301.
     """
-    d, e, ms = _get(f"/alerts/{alert_id}")
-    return _salida("consultar_alerta", {"alert_id": alert_id}, d, e, ms)
+    return _salida("consultar_alerta", {"alert_id": alert_id}, *_get(f"/alerts/{alert_id}"))
 
 
 @beta_tool
@@ -108,19 +165,10 @@ def buscar_alertas_relacionadas(texto: str, desde: str, hasta: str, limit: int =
         hasta: ISO 8601 UTC.
         limit: Máximo de alertas.
     """
-    d, e, ms = _get("/alerts", {"status": "new", "desde": desde, "hasta": hasta, "q": texto, "limit": limit})
-    if d is not None and not all(_coincide(texto, a) for a in d["items"]):
-        # API original sin parámetro q: se descargan las alertas de la ventana y se filtran aquí
-        d, e, ms2 = _get("/alerts", {"status": "new", "desde": desde, "hasta": hasta, "limit": 100000})
-        ms += ms2
-        if d is not None:
-            items = [a for a in d["items"] if _coincide(texto, a)]
-            d = {"total": len(items), "items": items}
+    d, e, ms = buscar_alertas(texto, desde, hasta, limit)
     if d is not None:
-        hits = d["items"]
-        d = {"total_coincidencias": d["total"], "items": [
-            {k: a.get(k) for k in ("alert_id", "created_at", "rule_id", "rule_name", "severity", "entities",
-                                   "related_events")} for a in hits[:limit]]}
+        campos = ("alert_id", "created_at", "rule_id", "rule_name", "severity", "entities", "related_events")
+        d = {"total_coincidencias": d["total"], "items": [{k: a.get(k) for k in campos} for a in d["items"]]}
     return _salida("buscar_alertas_relacionadas", {"texto": texto, "desde": desde, "hasta": hasta}, d, e, ms)
 
 
@@ -131,8 +179,7 @@ def consultar_activo(hostname_o_ip: str) -> str:
     Args:
         hostname_o_ip: Hostname o IP interna.
     """
-    d, e, ms = _get(f"/assets/{hostname_o_ip}")
-    return _salida("consultar_activo", {"hostname_o_ip": hostname_o_ip}, d, e, ms)
+    return _salida("consultar_activo", {"hostname_o_ip": hostname_o_ip}, *_get(f"/assets/{hostname_o_ip}"))
 
 
 @beta_tool
@@ -142,8 +189,7 @@ def consultar_usuario(upn_o_username: str) -> str:
     Args:
         upn_o_username: UPN o nombre de usuario.
     """
-    d, e, ms = _get(f"/users/{upn_o_username}")
-    return _salida("consultar_usuario", {"upn_o_username": upn_o_username}, d, e, ms)
+    return _salida("consultar_usuario", {"upn_o_username": upn_o_username}, *_get(f"/users/{upn_o_username}"))
 
 
 @beta_tool
@@ -160,16 +206,7 @@ def buscar_logs(fuente: str, texto: str, desde: str = "", hasta: str = "", limit
     """
     if fuente not in FUENTES_LOG:
         raise ValueError(f"Fuente desconocida '{fuente}'. Válidas: {', '.join(FUENTES_LOG)}")
-    limit = max(1, min(int(limit), 200))
-    d, e, ms = _get(f"/logs/{fuente}", {"q": texto, "desde": desde, "hasta": hasta, "limit": limit})
-    if d is not None and not all(_coincide(texto, x) for x in d["items"]):
-        # API original (subcadenas): se pide el máximo y se filtra aquí
-        d, e, ms2 = _get(f"/logs/{fuente}", {"q": texto, "desde": desde, "hasta": hasta, "limit": 2000})
-        ms += ms2
-        if d is not None:
-            items = [x for x in d["items"] if _coincide(texto, x)]
-            d = {"count": min(len(items), limit), "truncated": len(items) > limit or d["truncated"],
-                 "items": items[:limit]}
+    d, e, ms = buscar_eventos(fuente, texto, desde, hasta, max(1, min(int(limit), 200)))
     return _salida("buscar_logs", {"fuente": fuente, "texto": texto, "desde": desde, "hasta": hasta}, d, e, ms)
 
 
@@ -180,8 +217,7 @@ def consultar_inteligencia(indicador: str) -> str:
     Args:
         indicador: Valor exacto.
     """
-    d, e, ms = _get(f"/intel/{indicador}")
-    return _salida("consultar_inteligencia", {"indicador": indicador}, d, e, ms)
+    return _salida("consultar_inteligencia", {"indicador": indicador}, *_get(f"/intel/{indicador}"))
 
 
 @beta_tool
@@ -191,8 +227,7 @@ def consultar_sandbox(sha256: str) -> str:
     Args:
         sha256: Hash SHA-256.
     """
-    d, e, ms = _get(f"/sandbox/{sha256}")
-    return _salida("consultar_sandbox", {"sha256": sha256}, d, e, ms)
+    return _salida("consultar_sandbox", {"sha256": sha256}, *_get(f"/sandbox/{sha256}"))
 
 
 @beta_tool
@@ -202,8 +237,7 @@ def buscar_cambios(texto: str) -> str:
     Args:
         texto: Host, IP, usuario, servicio o palabra clave.
     """
-    d, e, ms = _get("/changes", {"q": texto})
-    return _salida("buscar_cambios", {"texto": texto}, d, e, ms)
+    return _salida("buscar_cambios", {"texto": texto}, *_get("/changes", {"q": texto}))
 
 
 @beta_tool
@@ -214,10 +248,8 @@ def leer_runbook(runbook: str) -> str:
         runbook: RB-01 a RB-10.
     """
     from .prompts import texto_runbook
-    t0 = time.time()
     texto = texto_runbook(runbook)
-    return _salida("leer_runbook", {"runbook": runbook}, texto, None if texto else f"runbook desconocido: {runbook}",
-                   int((time.time() - t0) * 1000))
+    return _salida("leer_runbook", {"runbook": runbook}, texto, None if texto else f"runbook desconocido: {runbook}", 0)
 
 
 HERRAMIENTAS = [
