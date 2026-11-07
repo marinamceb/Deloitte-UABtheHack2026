@@ -1,0 +1,190 @@
+{
+  "alerta": {
+    "alert_id": "ALR-20261005-000301",
+    "created_at": "2026-10-05T07:56:30.000Z",
+    "source_product": "EDR",
+    "rule_id": "UC-EDR-002",
+    "rule_name": "PowerShell con comando codificado",
+    "severity": "medium",
+    "status": "new",
+    "mitre": {
+      "tactic": "Execution",
+      "technique_id": "T1059.001",
+      "technique": "PowerShell"
+    },
+    "description": "Ejecución de PowerShell con -EncodedCommand.",
+    "entities": {
+      "hosts": [
+        {
+          "hostname": "WS-BCN-1174",
+          "ip": "10.10.1.185"
+        }
+      ],
+      "processes": [
+        {
+          "name": "powershell.exe",
+          "parent": "CcmExec.exe"
+        }
+      ]
+    },
+    "evidence": {
+      "parent": "CcmExec.exe (agente SCCM)",
+      "user": "SYSTEM",
+      "decoded_preview": "Get-CimInstance Win32_Product ... Out-File C:\\Windows\\CCM\\Inventory\\sw.json"
+    },
+    "related_events": [
+      "EDR-0005329"
+    ],
+    "runbook": "RB-02"
+  },
+  "ticket": {
+    "ticket_id": "TKT-20261005-000301",
+    "alert_ids": [
+      "ALR-20261005-000301"
+    ],
+    "title": "Ejecución legítima de PowerShell codificado por el agente de SCCM para inventario de software en WS-BCN-1174",
+    "verdict": "benign_true_positive",
+    "confidence": 1.0,
+    "severity": "low",
+    "severity_rationale": "Regla base Medium × Criticidad del activo Media (WS-BCN-1174) da un nivel base Medium. Al tratarse de un positivo benigno confirmado generado por una herramienta autorizada de gestión de TI (SCCM/CcmExec.exe), se aplica el ajuste de -1 nivel pasando a severidad Low (o Informational) conforme a la política del SOC.",
+    "affected": {
+      "users": [
+        "sergi.rubio@tarvia.example"
+      ],
+      "hosts": [
+        "WS-BCN-1174"
+      ],
+      "business_services": [
+        "Puesto de trabajo"
+      ],
+      "customers": []
+    },
+    "summary": "Se investigó la alerta ALR-20261005-000301 generada por la regla UC-EDR-002 debido al uso del parámetro -EncodedCommand en powershell.exe dentro del puesto de trabajo WS-BCN-1174. El análisis del evento en edr_events (ID EDR-0005329) confirma que el proceso fue iniciado por el agente corporativo de SCCM (CcmExec.exe) bajo la cuenta SYSTEM. La decodificación de la línea de comandos muestra una recolección rutinaria de inventario de software instalado mediante Get-CimInstance Win32_Product hacia C:\\Windows\\CCM\\Inventory\\sw.json. No existe evidencia de actividad maliciosa o sospechosa posterior en el activo.",
+    "evidence": [
+      {
+        "source": "edr_events",
+        "event_id": "EDR-0005329",
+        "finding": "Proceso powershell.exe lanzado por CcmExec.exe bajo la cuenta NT AUTHORITY\\SYSTEM. El comando codificado en Base64 decodifica a una consulta de inventario de software instalado ($inv = Get-CimInstance Win32_Product | Select Name,Version | ConvertTo-Json | Out-File C:\\Windows\\CCM\\Inventory\\sw.json)."
+      },
+      {
+        "source": "alerta",
+        "event_id": "ALR-20261005-000301",
+        "finding": "Alerta del SIEM por la regla UC-EDR-002 (PowerShell con comando codificado) activada por la presencia de -EncodedCommand."
+      }
+    ],
+    "enrichment": [
+      {
+        "indicator": "WS-BCN-1174",
+        "type": "host",
+        "source": "cmdb",
+        "result": "Portátil Windows 11 en zona HQ-USERS, criticidad Media, servicio de negocio Puesto de trabajo, asignado a sergi.rubio@tarvia.example."
+      },
+      {
+        "indicator": "sergi.rubio@tarvia.example",
+        "type": "user",
+        "source": "directorio",
+        "result": "Técnica de Nóminas en departamento Personas. Usuario activo sin privilegios administrativos ni marcas de riesgo/RRHH."
+      },
+      {
+        "indicator": "CcmExec.exe",
+        "type": "process",
+        "source": "edr_events",
+        "result": "Agente ejecutor de Microsoft System Center Configuration Manager (SCCM), firmado por Microsoft Corporation."
+      }
+    ],
+    "mitre": [
+      "T1059.001"
+    ],
+    "recommended_actions": [
+      {
+        "action": "close",
+        "target": "ALR-20261005-000301",
+        "requires_approval": false,
+        "justification": "Falso positivo operativo / Positivo benigno confirmado. La ejecución de PowerShell con comandos codificados es parte de las funciones normales de inventario del agente SCCM corporativo."
+      }
+    ],
+    "escalation": {
+      "escalate": false,
+      "to": "",
+      "reason": "No requiere escalado a N2 por tratarse de una tarea administrativa legítima del agente de gestión corporativo (SCCM)."
+    },
+    "open_questions": [],
+    "executed_actions": [],
+    "triage_seconds": 37.1
+  },
+  "traza": [
+    {
+      "tool": "consultar_alerta",
+      "args": {
+        "alert_id": "ALR-20261005-000301"
+      },
+      "ms": 1,
+      "chars": 740,
+      "error": null,
+      "preview": "{\"alert_id\": \"ALR-20261005-000301\", \"created_at\": \"2026-10-05T07:56:30.000Z\", \"source_product\": \"EDR\", \"rule_id\": \"UC-EDR-002\", \"rule_name\": \"PowerShell con comando codificado\", \"severity\": \"medium\", \"status\": \"new\", \"mitre\": {\"tactic\": \"Execution\", \"technique_id\": \"T1059.001\", \"technique\": \"PowerSh"
+    },
+    {
+      "tool": "consultar_activo",
+      "args": {
+        "hostname_o_ip": "WS-BCN-1174"
+      },
+      "ms": 2,
+      "chars": 366,
+      "error": null,
+      "preview": "{\"asset_id\": \"A00174\", \"hostname\": \"WS-BCN-1174\", \"ip\": \"10.10.1.185\", \"type\": \"Portátil\", \"os\": \"Windows 11 23H2\", \"criticality\": \"Media\", \"zone\": \"HQ-USERS\", \"location\": \"Barcelona HQ\", \"business_service\": \"Puesto de trabajo\", \"owner_upn\": \"sergi.rubio@tarvia.example\", \"internet_facing\": \"False\", "
+    },
+    {
+      "tool": "buscar_cambios",
+      "args": {
+        "texto": "WS-BCN-1174"
+      },
+      "ms": 3,
+      "chars": 2,
+      "error": null,
+      "preview": "[]"
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "WS-BCN-1174",
+        "desde": "2026-10-04T07:56:30Z",
+        "hasta": "2026-10-06T07:56:30Z"
+      },
+      "ms": 31,
+      "chars": 391,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 1, \"items\": [{\"alert_id\": \"ALR-20261005-000301\", \"created_at\": \"2026-10-05T07:56:30.000Z\", \"rule_id\": \"UC-EDR-002\", \"rule_name\": \"PowerShell con comando codificado\", \"severity\": \"medium\", \"entities\": {\"hosts\": [{\"hostname\": \"WS-BCN-1174\", \"ip\": \"10.10.1.185\"}], \"processes\": ["
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "edr_events",
+        "texto": "WS-BCN-1174",
+        "desde": "2026-10-04T07:56:30Z",
+        "hasta": "2026-10-06T07:56:30Z"
+      },
+      "ms": 49,
+      "chars": 4983,
+      "error": null,
+      "preview": "{\"count\": 9, \"truncated\": false, \"items\": [{\"event_id\": \"EDR-0005329\", \"timestamp\": \"2026-10-05T07:55:00.000Z\", \"event_type\": \"process_start\", \"hostname\": \"WS-BCN-1174\", \"user\": \"NT AUTHORITY\\\\SYSTEM\", \"process_name\": \"powershell.exe\", \"process_path\": \"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\"
+    },
+    {
+      "tool": "consultar_usuario",
+      "args": {
+        "upn_o_username": "sergi.rubio@tarvia.example"
+      },
+      "ms": 5,
+      "chars": 437,
+      "error": null,
+      "preview": "{\"user_id\": \"U1174\", \"username\": \"sergi.rubio\", \"upn\": \"sergi.rubio@tarvia.example\", \"display_name\": \"Sergi Rubio\", \"department\": \"Personas\", \"title\": \"Técnica de Nóminas\", \"location\": \"Barcelona HQ\", \"manager_upn\": \"albert.lozano@tarvia.example\", \"account_type\": \"user\", \"privileged\": \"False\", \"vip\""
+    }
+  ],
+  "razonamiento": [],
+  "uso": {
+    "input_tokens": 42041,
+    "output_tokens": 1205,
+    "llamadas_modelo": 3
+  },
+  "modelo": "gemini/gemini-3.5-flash",
+  "triado_en": "2026-11-07T15:34:20.946934+00:00"
+}

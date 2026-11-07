@@ -1,0 +1,208 @@
+{
+  "alerta": {
+    "alert_id": "ALR-20261009-001854",
+    "created_at": "2026-10-09T18:02:57.000Z",
+    "source_product": "WAF",
+    "rule_id": "UC-WEB-001",
+    "rule_name": "Ataque de inyección contra aplicación web",
+    "severity": "low",
+    "status": "new",
+    "mitre": {
+      "tactic": "Initial Access",
+      "technique_id": "T1190",
+      "technique": "Exploit Public-Facing Application"
+    },
+    "description": "Firma SQLi/XSS/LFI en el WAF.",
+    "entities": {
+      "ips": [
+        "198.18.58.15"
+      ],
+      "urls": [
+        "https://www.tarvia.example/api/v1/products?id=1 UNION SELECT NULL--"
+      ]
+    },
+    "evidence": {
+      "rule_id": "942100",
+      "rule_msg": "SQL Injection Attack Detected via libinjection",
+      "hits": 13,
+      "action": "blocked"
+    },
+    "related_events": [
+      "WAF-0009493"
+    ],
+    "runbook": "RB-05"
+  },
+  "ticket": {
+    "ticket_id": "TKT-20261009-001854",
+    "alert_ids": [
+      "ALR-20261009-001854",
+      "ALR-20261009-002026",
+      "ALR-20261009-002027",
+      "ALR-20261009-002028",
+      "ALR-20261009-002029",
+      "ALR-20261009-002030",
+      "ALR-20261009-002031",
+      "ALR-20261009-002032",
+      "ALR-20261009-002033",
+      "ALR-20261009-002034",
+      "ALR-20261009-002035"
+    ],
+    "title": "Intento de inyección SQL bloqueado por el WAF contra la tienda online www.tarvia.example",
+    "verdict": "true_positive",
+    "confidence": 1.0,
+    "severity": "low",
+    "severity_rationale": "Regla UC-WEB-001 (low) cruzada con activo WEB-ECOM01 de criticidad Crítica resulta en severidad base Medium. Se aplica ajuste de -1 nivel a Low al ser bloqueado el intento por el WAF (action: blocked, HTTP 403) sin producir impacto ni ejecución posterior.",
+    "affected": {
+      "users": [],
+      "hosts": [
+        "WEB-ECOM01"
+      ],
+      "business_services": [
+        "Tienda online y app (≈38% de la facturación)"
+      ],
+      "customers": []
+    },
+    "summary": "El WAF detectó y bloqueó de forma efectiva un intento de inyección SQL (payload UNION SELECT NULL--) dirigido contra www.tarvia.example desde la IP 198.18.58.15. Tras consultar el calendario de cambios, la IP no pertenece al rango autorizado para el pentest externo activo (CHG-2026-1042). Dado que todas las peticiones del bloque de escaneo fueron mitigadas con código HTTP 403 sin mayor trascendencia, la alerta se clasifica como un verdadero positivo bloqueado y se procede al cierre.",
+    "evidence": [
+      {
+        "source": "waf",
+        "event_id": "WAF-0009493",
+        "finding": "Petición GET a /api/v1/products con payload SQLi '1 UNION SELECT NULL--' desde IP 198.18.58.15 bloqueada con código 403 por la regla de WAF 942100."
+      },
+      {
+        "source": "alerta",
+        "event_id": "ALR-20261009-001854",
+        "finding": "Alerta del SIEM generada por inyección SQL detectada y bloqueada en el WAF sobre la tienda online."
+      },
+      {
+        "source": "buscar_cambios",
+        "event_id": "CHG-2026-1042",
+        "finding": "Pentest externo programado del 8 al 10 de octubre desde las IPs 192.0.2.10-12. La IP 198.18.58.15 no forma parte del alcance del pentest."
+      }
+    ],
+    "enrichment": [
+      {
+        "indicator": "198.18.58.15",
+        "type": "ip",
+        "source": "geoip_asn",
+        "result": "IP de Brasil, AS64680, proveedor de hosting / escáner de Internet simulado."
+      },
+      {
+        "indicator": "WEB-ECOM01",
+        "type": "host",
+        "source": "cmdb",
+        "result": "Frontal web en DMZ (10.50.1.11), criticidad Crítica, servicio de negocio Tienda online y app."
+      }
+    ],
+    "mitre": [
+      "T1190"
+    ],
+    "recommended_actions": [
+      {
+        "action": "close",
+        "target": "ALR-20261009-001854",
+        "requires_approval": false,
+        "justification": "Los intentos de inyección web fueron bloqueados por el WAF sin causar impacto, siguiendo las indicaciones del runbook RB-05."
+      },
+      {
+        "action": "block_ioc",
+        "target": "198.18.58.15",
+        "requires_approval": false,
+        "justification": "Bloquear la IP 198.18.58.15 en el WAF/NGFW para evitar ruido de escaneo continuo."
+      }
+    ],
+    "escalation": {
+      "escalate": false,
+      "to": "",
+      "reason": "Ataque bloqueado de forma efectiva por el WAF sin impacto ni ejecución en la aplicación web. Según el runbook RB-05, no requiere escalado a N2."
+    },
+    "open_questions": [],
+    "executed_actions": [],
+    "triage_seconds": 45.6
+  },
+  "traza": [
+    {
+      "tool": "consultar_alerta",
+      "args": {
+        "alert_id": "ALR-20261009-001854"
+      },
+      "ms": 1,
+      "chars": 688,
+      "error": null,
+      "preview": "{\"alert_id\": \"ALR-20261009-001854\", \"created_at\": \"2026-10-09T18:02:57.000Z\", \"source_product\": \"WAF\", \"rule_id\": \"UC-WEB-001\", \"rule_name\": \"Ataque de inyección contra aplicación web\", \"severity\": \"low\", \"status\": \"new\", \"mitre\": {\"tactic\": \"Initial Access\", \"technique_id\": \"T1190\", \"technique\": \"E"
+    },
+    {
+      "tool": "buscar_cambios",
+      "args": {
+        "texto": "pentest"
+      },
+      "ms": 1,
+      "chars": 277,
+      "error": null,
+      "preview": "[{\"id\": \"CHG-2026-1042\", \"titulo\": \"Pentest externo de la tienda online\", \"inicio\": \"2026-10-08 08:00\", \"fin\": \"2026-10-10 18:00\", \"solicitante\": \"Auditora externa\", \"detalle\": \"IPs origen 192.0.2.10-12; alcance www.tarvia.example y api; sin DoS\", \"alcance\": \"WEB-ECOM01..04\"}]"
+    },
+    {
+      "tool": "consultar_inteligencia",
+      "args": {
+        "indicador": "198.18.58.15"
+      },
+      "ms": 2,
+      "chars": 275,
+      "error": null,
+      "preview": "{\"indicator\": \"198.18.58.15\", \"tip\": null, \"geo\": {\"ip\": \"198.18.58.15\", \"country\": \"BR\", \"city\": \"\", \"asn\": \"AS64680\", \"as_org\": \"Hosting (escáner de Internet, simulado)\", \"is_tor\": \"False\", \"is_vpn_provider\": \"False\", \"is_hosting\": \"True\", \"is_residential_proxy\": \"False\"}}"
+    },
+    {
+      "tool": "consultar_activo",
+      "args": {
+        "hostname_o_ip": "198.18.58.15"
+      },
+      "ms": 3,
+      "chars": 58,
+      "error": "404: no está en la CMDB (¿equipo externo o no gestionado?)",
+      "preview": "404: no está en la CMDB (¿equipo externo o no gestionado?)"
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "198.18.58.15",
+        "desde": "2026-10-08T00:00:00Z",
+        "hasta": "2026-10-10T23:59:59Z"
+      },
+      "ms": 52,
+      "chars": 3586,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 11, \"items\": [{\"alert_id\": \"ALR-20261009-002033\", \"created_at\": \"2026-10-09T00:36:03.000Z\", \"rule_id\": \"UC-WEB-001\", \"rule_name\": \"Ataque de inyección contra aplicación web\", \"severity\": \"low\", \"entities\": {\"ips\": [\"198.18.58.157\"], \"urls\": [\"https://www.tarvia.example/api/v1"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "waf",
+        "texto": "198.18.58.15",
+        "desde": "2026-10-09T00:00:00Z",
+        "hasta": "2026-10-09T23:59:59Z"
+      },
+      "ms": 16,
+      "chars": 3899,
+      "error": null,
+      "preview": "{\"count\": 11, \"truncated\": false, \"items\": [{\"event_id\": \"WAF-0009544\", \"timestamp\": \"2026-10-09T00:33:00.000Z\", \"src_ip\": \"198.18.58.157\", \"country\": \"CN\", \"method\": \"GET\", \"host\": \"www.tarvia.example\", \"uri\": \"/api/v1/products?id=1 UNION SELECT NULL--\", \"status\": 403, \"rule_id\": \"942100\", \"rule_ms"
+    },
+    {
+      "tool": "consultar_activo",
+      "args": {
+        "hostname_o_ip": "WEB-ECOM01"
+      },
+      "ms": 3,
+      "chars": 380,
+      "error": null,
+      "preview": "{\"asset_id\": \"A01167\", \"hostname\": \"WEB-ECOM01\", \"ip\": \"10.50.1.11\", \"type\": \"Frontal web\", \"os\": \"Ubuntu 22.04 / nginx + PHP 8.2\", \"criticality\": \"Crítica\", \"zone\": \"DMZ\", \"location\": \"CPD Barcelona\", \"business_service\": \"Tienda online y app (≈38% de la facturación)\", \"owner_upn\": \"\", \"internet_fac"
+    }
+  ],
+  "razonamiento": [],
+  "uso": {
+    "input_tokens": 44762,
+    "output_tokens": 1435,
+    "llamadas_modelo": 3
+  },
+  "modelo": "gemini/gemini-3.5-flash",
+  "triado_en": "2026-11-07T15:42:46.537282+00:00"
+}
