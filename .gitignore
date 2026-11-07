@@ -1,0 +1,80 @@
+# ==========================================
+# 🔐 SEGURIDAD: TOKENS, LLAVES Y VARIABLES DE ENTORNO
+# ==========================================
+# Archivos de entorno (Cualquier variante de .env)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+*.env.local
+.env.backup
+*.env.bak
+
+# Credenciales, tokens y llaves privadas
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+credentials.json
+secrets.json
+
+# ==========================================
+# 🤖 INTELIGENCIA ARTIFICIAL (Claude, Claude Code, etc.)
+# ==========================================
+# Configuraciones locales e historiales de Claude
+.claude/
+claude.config.*
+.anthropic/
+.cline/
+.roo/
+
+# Archivos temporales o de contexto generados por IA
+.claude-session*
+claude-cache/
+
+# ==========================================
+# 💻 EDITOR: VISUAL STUDIO CODE & KITTY
+# ==========================================
+# Configuraciones de VS Code que pueden contener rutas locales o secretos
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.history/
+*.code-workspace
+
+# Evitar subir configuraciones accidentales de la terminal Kitty en el repo
+.kitty/
+
+# ==========================================
+# 🐧 SISTEMA OPERATIVO (Arch Linux / Genérico)
+# ==========================================
+# Archivos basura del sistema y miniaturas
+.DS_Store
+Thumbs.db
+lost+found/
+*.log
+*.tmp
+*.bak
+
+# ==========================================
+# 📦 LENGUAJES Y DEPENDENCIAS (Genérico / Node / Python)
+# ==========================================
+# Carpetas pesadas de dependencias que se regeneran
+node_modules/
+bower_components/
+jspm_packages/
+
+# Python (por si Claude genera scripts en tu entorno)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
