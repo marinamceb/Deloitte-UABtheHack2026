@@ -9,6 +9,7 @@ Cada corrección queda listada en `ajustes_politica` para que el analista vea qu
 """
 import csv
 import datetime as dt
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -40,8 +41,8 @@ def _responsable(activo: dict) -> str:
 
 
 def _fuera_de_horario(iso: str) -> bool:
-    """SOC: 8-20 h de lunes a viernes, hora de España (UTC+2 en el periodo del dataset)."""
-    t = dt.datetime.fromisoformat(iso.replace("Z", "+00:00")) + dt.timedelta(hours=2)
+    """SOC: 8-20 h de lunes a viernes, hora de España (Europe/Madrid: UTC+2 hasta el 25/10/2026, UTC+1 después)."""
+    t = dt.datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(ZoneInfo("Europe/Madrid"))
     return t.weekday() >= 5 or not 8 <= t.hour < 20
 
 
@@ -65,8 +66,21 @@ def _aprobacion_aislamiento(accion: dict, ajustes: list[str]) -> dict | None:
     return {**accion, "requires_approval": True, "approvers": aprobadores}
 
 
-def validar(ticket: dict, alerta: dict) -> dict:
+def validar(ticket: dict, alerta: dict, comprobaciones: list[dict] = ()) -> dict:
     ajustes: list[str] = []
+    # Reglas internas (empresa_tarvia.md): no se da por buena una actividad que el código ha comprobado que las incumple
+    sospechosas = [c for c in comprobaciones if c["estado"] == "sospechosa"]
+    if sospechosas and ticket["verdict"] in ("false_positive", "benign_true_positive"):
+        ajustes.append(f"Veredicto {ticket['verdict']} → needs_more_info: contradice la comprobación interna "
+                       f"«{sospechosas[0]['regla']}» ({sospechosas[0]['motivo'][:120]})")
+        ticket = {**ticket, "verdict": "needs_more_info",
+                  "open_questions": ticket["open_questions"] + [f"Resolver la regla interna incumplida: "
+                                                                f"{sospechosas[0]['regla']} — {sospechosas[0]['sujeto']}"]}
+    for c in comprobaciones:
+        if c["estado"] == "requiere_info" and c["dato_faltante"]:
+            pregunta = f"{c['regla']} ({c['sujeto']}): falta {c['dato_faltante']}"
+            if pregunta not in ticket["open_questions"]:
+                ticket = {**ticket, "open_questions": ticket["open_questions"] + [pregunta]}
     acciones = []
 
     for a in ticket["recommended_actions"]:

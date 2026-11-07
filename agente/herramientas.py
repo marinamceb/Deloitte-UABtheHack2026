@@ -74,6 +74,19 @@ def _salida(nombre: str, args: dict, datos, error: str | None, ms: int) -> str:
     return f"<datos_no_confiables herramienta=\"{nombre}\">\n{texto}\n</datos_no_confiables>"
 
 
+def consultar_api(nombre: str, ruta: str, params: dict | None = None):
+    """Consulta directa a la API para código determinista (reglas internas). Devuelve (datos, error) y queda en la
+    traza con el ORIGEN actual. No es una herramienta del modelo."""
+    try:
+        d, e, ms = _get(ruta, params)
+    except RuntimeError as exc:
+        d, e, ms = None, str(exc), 0
+    TRAZA.append({"tool": nombre, "args": {"ruta": ruta, **{k: v for k, v in (params or {}).items() if v}},
+                  "origen": ORIGEN, "ms": ms, "chars": len(json.dumps(d, ensure_ascii=False)) if d is not None else 0,
+                  "error": e, "preview": ""})
+    return d, e
+
+
 @beta_tool
 def consultar_alerta(alert_id: str) -> str:
     """Detalle de otra alerta del SIEM.

@@ -108,6 +108,9 @@ def main():
         print(f"  → {t['verdict']} · {t['severity']} · conf {t['confidence']:.2f} · "
               f"{'ESCALAR a ' + t['escalation']['to'] if t['escalation']['escalate'] else 'cerrar'}")
         print(f"    {t['title']}")
+        for c in t.get("comprobaciones_internas", []):
+            print(f"    {dict(permitida='✓', sospechosa='⚠', requiere_info='?')[c['estado']]} regla interna: "
+                  f"{c['regla']} — {c['sujeto']}: {c['estado']}")
         for aj in t.get("ajustes_politica", []):
             print(f"    ⚖ política: {aj}")
         print(f"    {len(res['traza'])} consultas · {t['triage_seconds']} s · "

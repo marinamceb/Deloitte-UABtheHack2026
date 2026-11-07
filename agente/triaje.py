@@ -7,7 +7,7 @@ import os
 import time
 from pathlib import Path
 
-from . import herramientas, incidentes, plantillas, politica
+from . import herramientas, incidentes, plantillas, politica, reglas_internas
 from .modelos import calcular_severidad
 from .preinvestigacion import preinvestigar
 from .prompts import construir_prompt_sistema, contexto_regla
@@ -25,7 +25,12 @@ def motor():
     return motor_openai
 
 
-def _mensaje_usuario(alerta: dict, investigacion: str, incidente: list[str]) -> str:
+def _mensaje_usuario(alerta: dict, investigacion: str, incidente: list[str], comprobaciones: list[dict] = ()) -> str:
+    bloque_reglas = ""
+    if comprobaciones:
+        bloque_reglas = ("\n\n<comprobaciones_internas nota=\"reglas internas de la empresa comprobadas por código con "
+                         "logs, inventario y calendario de cambios\">\n"
+                         f"{reglas_internas.formatear(comprobaciones)}\n</comprobaciones_internas>")
     bloque_incidente = ""
     if len(incidente) > 1:
         bloque_incidente = (
@@ -42,7 +47,7 @@ def _mensaje_usuario(alerta: dict, investigacion: str, incidente: list[str]) -> 
         "<datos_no_confiables herramienta=\"siem\">\n"
         f"{json.dumps(alerta, ensure_ascii=False, separators=(',', ':'))}\n"
         "</datos_no_confiables>\n\n"
-        f"{contexto_regla(alerta)}{bloque_incidente}\n\n"
+        f"{contexto_regla(alerta)}{bloque_incidente}{bloque_reglas}\n\n"
         "<investigacion_inicial nota=\"consultas ya hechas automáticamente; no las repitas\">\n"
         f"{investigacion}\n"
         "</investigacion_inicial>"
@@ -87,7 +92,7 @@ def _ticket_sin_conclusion(alerta: dict, motivo: str) -> dict:
     }
 
 
-def _componer(alerta: dict, t: dict) -> dict:
+def _componer(alerta: dict, t: dict, comprobaciones: list[dict] = ()) -> dict:
     """Pasa la salida del modelo al formato de ticket_salida.schema.json, con la severidad calculada por código."""
     severidad, explicacion = calcular_severidad(_severidad_regla(alerta, t["alert_ids"]), t)
     claves = ["alert_ids", "title", "verdict", "confidence", "affected", "summary", "evidence", "enrichment", "mitre",
@@ -96,7 +101,7 @@ def _componer(alerta: dict, t: dict) -> dict:
     ticket.update(severity=severidad, severity_rationale=explicacion)
     if not ticket["escalation"]["escalate"]:
         ticket["escalation"] = {"escalate": False, "to": "", "reason": ""}
-    return politica.validar(ticket, alerta)
+    return politica.validar(ticket, alerta, comprobaciones)
 
 
 def triar(alerta: dict, effort: str = "high", max_iteraciones: int = 25, usar_plantillas: bool = True) -> dict:
@@ -108,18 +113,24 @@ def triar(alerta: dict, effort: str = "high", max_iteraciones: int = 25, usar_pl
     herramientas.TRAZA.clear()
     t0 = time.time()
     firma = plantillas.firma(alerta)
-    ref = plantillas.buscar(alerta, SALIDAS / "tickets") if usar_plantillas else None
+    incidente = incidentes.incidente_de(alerta["alert_id"])
+    todas = incidentes.todas_las_alertas()
+    otras = [todas[i] for i in incidente if i != alerta["alert_id"] and i in todas]
+    comprobaciones = reglas_internas.evaluar(alerta, otras)
+    # Una alerta que incumple una regla interna o a la que le falta información no hereda veredicto de una plantilla
+    limpia = reglas_internas.resumen_estado(comprobaciones) in ("", reglas_internas.PERMITIDA)
+    ref = plantillas.buscar(alerta, SALIDAS / "tickets") if usar_plantillas and limpia else None
 
     if ref:
         ticket, entrada = plantillas.heredar(alerta, ref)
         r = {"razonamiento": [], "uso": {"input_tokens": 0, "output_tokens": 0, "llamadas_modelo": 0},
              "modelo": "plantilla (sin LLM)"}
     else:
-        incidente = incidentes.incidente_de(alerta["alert_id"])
-        todas = incidentes.todas_las_alertas()
-        investigacion = preinvestigar(alerta, [todas[i] for i in incidente if i != alerta["alert_id"] and i in todas])
-        r = motor().ejecutar(_SISTEMA, _mensaje_usuario(alerta, investigacion, incidente), effort, max_iteraciones)
-        ticket = _componer(alerta, r["ticket"]) if r["ticket"] else _ticket_sin_conclusion(alerta, r["motivo"])
+        investigacion = preinvestigar(alerta, otras)
+        r = motor().ejecutar(_SISTEMA, _mensaje_usuario(alerta, investigacion, incidente, comprobaciones), effort,
+                             max_iteraciones)
+        ticket = (_componer(alerta, r["ticket"], comprobaciones) if r["ticket"]
+                  else _ticket_sin_conclusion(alerta, r["motivo"]))
         entrada = ({k: r["ticket"][k] for k in ("activo_mas_critico", "criticidad", "ajuste", "motivo_ajuste",
                                                "patron_generalizable")}
                    if r["ticket"] else None)
@@ -129,6 +140,7 @@ def triar(alerta: dict, effort: str = "high", max_iteraciones: int = 25, usar_pl
     orden = ["alert_ids", "title", "verdict", "confidence", "severity", "severity_rationale", "affected", "summary",
              "evidence", "enrichment", "mitre", "recommended_actions", "escalation", "open_questions"]
     ticket = {"ticket_id": "TKT-" + alerta["alert_id"].removeprefix("ALR-"), **{k: ticket[k] for k in orden},
+              "comprobaciones_internas": comprobaciones,
               "ajustes_politica": ticket.get("ajustes_politica", []),
              "executed_actions": [], "triage_seconds": round(time.time() - t0, 1)}
 

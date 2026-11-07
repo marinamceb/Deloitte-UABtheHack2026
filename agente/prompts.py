@@ -20,6 +20,9 @@ Cómo trabajar:
 orden y aplica su apartado «Decisión». Si el incidente toca otra regla, puedes leer su runbook con `leer_runbook`.
 2. Contextualiza cada entidad: consulta el activo (criticidad, zona, servicio) y la identidad (privilegios, VIP, RRHH). \
 Revisa el calendario de cambios y las reglas internas de la ficha de empresa antes de declarar algo malicioso.
+   Si el mensaje trae <comprobaciones_internas>, son las reglas internas de la empresa ya comprobadas por código: \
+✓ permitida (cumple la regla o la cubre un cambio aprobado), ⚠ sospechosa (la incumple), ? requiere_info (faltan datos: \
+no la des por buena y ponlo en open_questions). Úsalas como hechos y cita sus evidencias.
 3. Enriquece cada indicador externo (IP, dominio, URL, hash) con inteligencia y sandbox.
 4. Correlaciona: busca otras alertas y logs de las mismas entidades en ±24 h; amplía la ventana si ves indicios de una \
 cadena de días. La clave a menudo está en eventos que no aparecen en `related_events`. Si encuentras alertas del mismo \
