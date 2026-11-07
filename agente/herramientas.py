@@ -23,10 +23,25 @@ TRAZA: list[dict] = []  # se reinicia por alerta desde triaje.py
 ORIGEN = "agente"  # "auto" mientras corre la investigación previa (preinvestigacion.py); queda en la traza
 
 
+# Misma regla que coincide_identificador() en mock_soc_api.py (mantener ambas iguales). La API filtra con ella; aquí
+# se vuelve a aplicar como red de seguridad por si se usa la versión original de la API, que busca subcadenas.
+_ID = r"0-9A-Za-z_\-"
+
+
 def _coincide(texto: str, obj) -> bool:
-    """Búsqueda de entidad con límites: '198.18.58.15' no debe casar con '198.18.58.150' ni 'WS-1' con 'WS-17'."""
-    patron = r"(?<![0-9A-Za-z])" + re.escape(texto.lower()) + r"(?![0-9A-Za-z])"
-    return re.search(patron, json.dumps(obj, ensure_ascii=False).lower()) is not None
+    """True si `texto` aparece en `obj` como identificador completo: '198.18.58.15' no casa con '198.18.58.157' ni
+    'WS-BCN-1174' con 'WS-BCN-11740' o 'WS-BCN-1174-B'."""
+    if not texto:
+        return True
+    cadena = json.dumps(obj, ensure_ascii=False)
+    if texto.lower() not in cadena.lower():
+        return False
+    patron = re.escape(texto)
+    if re.match(rf"[{_ID}]", texto):
+        patron = rf"(?<![{_ID}])(?<![{_ID}]\.)" + patron
+    if re.search(rf"[{_ID}]$", texto):
+        patron += rf"(?![{_ID}])(?!\.[{_ID}])"
+    return re.search(patron, cadena, re.IGNORECASE) is not None
 
 
 def _get(ruta: str, params: dict | None = None):
@@ -80,10 +95,17 @@ def buscar_alertas_relacionadas(texto: str, desde: str, hasta: str, limit: int =
         hasta: ISO 8601 UTC.
         limit: Máximo de alertas.
     """
-    d, e, ms = _get("/alerts", {"status": "new", "desde": desde, "hasta": hasta, "limit": 20000})
+    d, e, ms = _get("/alerts", {"status": "new", "desde": desde, "hasta": hasta, "q": texto, "limit": limit})
+    if d is not None and not all(_coincide(texto, a) for a in d["items"]):
+        # API original sin parámetro q: se descargan las alertas de la ventana y se filtran aquí
+        d, e, ms2 = _get("/alerts", {"status": "new", "desde": desde, "hasta": hasta, "limit": 100000})
+        ms += ms2
+        if d is not None:
+            items = [a for a in d["items"] if _coincide(texto, a)]
+            d = {"total": len(items), "items": items}
     if d is not None:
-        hits = [a for a in d["items"] if _coincide(texto, a)]
-        d = {"total_coincidencias": len(hits), "items": [
+        hits = d["items"]
+        d = {"total_coincidencias": d["total"], "items": [
             {k: a.get(k) for k in ("alert_id", "created_at", "rule_id", "rule_name", "severity", "entities",
                                    "related_events")} for a in hits[:limit]]}
     return _salida("buscar_alertas_relacionadas", {"texto": texto, "desde": desde, "hasta": hasta}, d, e, ms)
@@ -126,11 +148,15 @@ def buscar_logs(fuente: str, texto: str, desde: str = "", hasta: str = "", limit
     if fuente not in FUENTES_LOG:
         raise ValueError(f"Fuente desconocida '{fuente}'. Válidas: {', '.join(FUENTES_LOG)}")
     limit = max(1, min(int(limit), 200))
-    # La API filtra por subcadena: se piden más eventos y se descartan los que solo casan como parte de otra palabra.
-    d, e, ms = _get(f"/logs/{fuente}", {"q": texto, "desde": desde, "hasta": hasta, "limit": min(limit * 5, 2000)})
-    if d is not None:
-        items = [x for x in d["items"] if _coincide(texto, x)]
-        d = {"count": min(len(items), limit), "truncated": len(items) > limit or d["truncated"], "items": items[:limit]}
+    d, e, ms = _get(f"/logs/{fuente}", {"q": texto, "desde": desde, "hasta": hasta, "limit": limit})
+    if d is not None and not all(_coincide(texto, x) for x in d["items"]):
+        # API original (subcadenas): se pide el máximo y se filtra aquí
+        d, e, ms2 = _get(f"/logs/{fuente}", {"q": texto, "desde": desde, "hasta": hasta, "limit": 2000})
+        ms += ms2
+        if d is not None:
+            items = [x for x in d["items"] if _coincide(texto, x)]
+            d = {"count": min(len(items), limit), "truncated": len(items) > limit or d["truncated"],
+                 "items": items[:limit]}
     return _salida("buscar_logs", {"fuente": fuente, "texto": texto, "desde": desde, "hasta": hasta}, d, e, ms)
 
 

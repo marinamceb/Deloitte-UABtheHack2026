@@ -1,5 +1,6 @@
 """API simulada del SOC de Tarvia. Lee los ficheros del dataset; no tiene red ni efectos reales."""
-import csv, json, os, uuid, datetime as dt
+import csv, json, os, re, uuid, datetime as dt
+from functools import lru_cache
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
@@ -33,12 +34,40 @@ def logs(src):
             raise HTTPException(404, f"fuente desconocida: {src}")
     return _cache[src]
 
+# Búsqueda por identificador completo: "198.18.58.15" no casa con "198.18.58.157" ni "WS-BCN-1174" con
+# "WS-BCN-11740" o "WS-BCN-1174-B". Son parte de un identificador las letras, cifras, "_" y "-", y el "." cuando va
+# seguido de otro de esos caracteres (IPs, dominios, UPN). Los límites solo se exigen en los extremos de la consulta
+# que son caracteres de identificador, así que también sirve para texto libre ("/cli?remoting=false").
+_ID = r"0-9A-Za-z_\-"
+
+@lru_cache(maxsize=1024)
+def _patron_identificador(q: str):
+    patron = re.escape(q)
+    if re.match(rf"[{_ID}]", q):
+        patron = rf"(?<![{_ID}])(?<![{_ID}]\.)" + patron
+    if re.search(rf"[{_ID}]$", q):
+        patron += rf"(?![{_ID}])(?!\.[{_ID}])"
+    return re.compile(patron, re.IGNORECASE)
+
+def coincide_identificador(q: str, texto: str) -> bool:
+    """True si `q` aparece en `texto` como identificador completo (sin distinguir mayúsculas)."""
+    if not q:
+        return True
+    if q.lower() not in texto.lower():  # descarte rápido antes de la expresión regular
+        return False
+    return _patron_identificador(q).search(texto) is not None
+
+def coincide_registro(q: str, registro: dict) -> bool:
+    return coincide_identificador(q, json.dumps(registro, ensure_ascii=False))
+
 app = FastAPI(title="Tarvia SOC (simulado)", version="1.0")
 
 @app.get("/alerts")
-def list_alerts(status: str = "new", desde: str = "", hasta: str = "", rule_id: str = "", limit: int = 50, offset: int = 0):
+def list_alerts(status: str = "new", desde: str = "", hasta: str = "", rule_id: str = "", q: str = "",
+                limit: int = 50, offset: int = 0):
     rows = [a for a in ALERTS.values() if a["status"] == status and (not rule_id or a["rule_id"] == rule_id)
-            and (not desde or a["created_at"] >= desde) and (not hasta or a["created_at"] <= hasta)]
+            and (not desde or a["created_at"] >= desde) and (not hasta or a["created_at"] <= hasta)
+            and coincide_registro(q, a)]
     return {"total": len(rows), "items": rows[offset:offset + limit]}
 
 @app.get("/alerts/{alert_id}")
@@ -66,7 +95,7 @@ def search_logs(source: str, q: str = "", desde: str = "", hasta: str = "", limi
         t = e.get("timestamp") or e.get("eventTime", "")
         if desde and t < desde: continue
         if hasta and t > hasta: continue
-        if q and q.lower() not in json.dumps(e, ensure_ascii=False).lower(): continue
+        if q and not coincide_registro(q, e): continue
         out.append(e)
         if len(out) >= limit: break
     return {"count": len(out), "truncated": len(out) >= limit, "items": out}
