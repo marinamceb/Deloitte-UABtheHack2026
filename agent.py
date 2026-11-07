@@ -109,7 +109,8 @@ def main():
               f"{'ESCALAR a ' + t['escalation']['to'] if t['escalation']['escalate'] else 'cerrar'}")
         print(f"    {t['title']}")
         for c in t.get("comprobaciones_internas", []):
-            print(f"    {dict(permitida='✓', sospechosa='⚠', requiere_info='?')[c['estado']]} regla interna: "
+            print(f"    {dict(permitida='✓', sospechosa='⚠', requiere_info='?', informativa='ℹ')[c['estado']]} "
+                  f"{'cambio' if c.get('tipo') == 'cambio' else 'regla interna'}: "
                   f"{c['regla']} — {c['sujeto']}: {c['estado']}")
         for aj in t.get("ajustes_politica", []):
             print(f"    ⚖ política: {aj}")

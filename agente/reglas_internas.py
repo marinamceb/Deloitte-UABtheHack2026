@@ -22,6 +22,7 @@ from .prompts import DATASET
 
 MADRID = ZoneInfo("Europe/Madrid")
 PERMITIDA, SOSPECHOSA, REQUIERE_INFO = "permitida", "sospechosa", "requiere_info"
+INFORMATIVA = "informativa"  # hecho útil que no autoriza ni incumple nada (no bloquea plantillas ni veredictos)
 
 # Valores fijados por empresa_tarvia.md
 JUMP01 = "JUMP01"
@@ -120,8 +121,9 @@ def _ips_de(texto: str) -> list[str]:
     return re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", texto)
 
 
-def hallazgo(regla: str, sujeto: str, estado: str, motivo: str, evidencias=(), dato_faltante: str = "") -> dict:
-    return {"regla": regla, "sujeto": sujeto, "estado": estado, "motivo": motivo,
+def hallazgo(regla: str, sujeto: str, estado: str, motivo: str, evidencias=(), dato_faltante: str = "",
+             tipo: str = "regla_interna") -> dict:
+    return {"tipo": tipo, "regla": regla, "sujeto": sujeto, "estado": estado, "motivo": motivo,
             "evidencias": sorted(set(evidencias)), "dato_faltante": dato_faltante}
 
 
@@ -483,11 +485,13 @@ def evaluar(alerta: dict, otras: list[dict] = ()) -> list[dict]:
 
 
 def resumen_estado(resultados: list[dict]) -> str:
-    return _peor([r["estado"] for r in resultados]) if resultados else ""
+    """Peor estado entre sospechosa, requiere_info y permitida (las informativas no cuentan)."""
+    estados = [r["estado"] for r in resultados if r["estado"] != INFORMATIVA]
+    return _peor(estados) if estados else ""
 
 
 def formatear(resultados: list[dict]) -> str:
-    simbolo = {PERMITIDA: "✓", SOSPECHOSA: "⚠", REQUIERE_INFO: "?"}
+    simbolo = {PERMITIDA: "✓", SOSPECHOSA: "⚠", REQUIERE_INFO: "?", INFORMATIVA: "ℹ"}
     lineas = []
     for r in resultados:
         linea = f"{simbolo[r['estado']]} [{r['estado']}] {r['regla']} — {r['sujeto']}: {r['motivo']}"

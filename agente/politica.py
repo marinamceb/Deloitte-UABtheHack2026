@@ -9,6 +9,7 @@ Cada corrección queda listada en `ajustes_politica` para que el analista vea qu
 """
 import csv
 import datetime as dt
+import json
 from zoneinfo import ZoneInfo
 
 import requests
@@ -76,6 +77,25 @@ def validar(ticket: dict, alerta: dict, comprobaciones: list[dict] = ()) -> dict
         ticket = {**ticket, "verdict": "needs_more_info",
                   "open_questions": ticket["open_questions"] + [f"Resolver la regla interna incumplida: "
                                                                 f"{sospechosas[0]['regla']} — {sospechosas[0]['sujeto']}"]}
+    # Descartar con argumentos (nivel 2): una actividad autorizada debe citar qué la autoriza
+    if ticket["verdict"] == "benign_true_positive":
+        from . import cambios
+        texto = json.dumps({k: ticket.get(k) for k in ("summary", "severity_rationale", "evidence",
+                                                        "recommended_actions", "title")}, ensure_ascii=False)
+        validos, invalidos = [], []
+        for id_cambio in sorted(cambios.citados(texto)):
+            c = cambios.por_id(id_cambio)
+            (validos if c and (id_cambio.startswith("FLUJO-") or cambios.vigente(c, alerta["created_at"]))
+             else invalidos).append(id_cambio)
+        for x in invalidos:
+            ajustes.append(f"El ticket cita {x}, que no existe o no está vigente en el momento de la alerta")
+        permitidas = [c for c in comprobaciones if c["estado"] == "permitida"]
+        if not validos and not permitidas:
+            ajustes.append("Veredicto benign_true_positive → needs_more_info: no cita ningún cambio, flujo o "
+                           "comprobación que autorice la actividad")
+            ticket = {**ticket, "verdict": "needs_more_info",
+                      "open_questions": ticket["open_questions"] + ["Indicar el cambio, flujo aprobado o regla que "
+                                                                    "autoriza esta actividad"]}
     for c in comprobaciones:
         if c["estado"] == "requiere_info" and c["dato_faltante"]:
             pregunta = f"{c['regla']} ({c['sujeto']}): falta {c['dato_faltante']}"

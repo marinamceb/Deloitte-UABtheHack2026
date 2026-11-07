@@ -64,7 +64,7 @@ class TicketTriaje(BaseModel):
     verdict: Veredicto
     confidence: float = Field(description="Entre 0 y 1")
     activo_mas_critico: str = Field(description="Hostname, UPN o recurso")
-    criticidad: Criticidad = Field(description="CMDB; identidades: Alta si privilegiada o VIP, si no Media")
+    criticidad: Criticidad = Field(description="Según CMDB o servicio de negocio; identidades: Media")
     ajuste: Literal["-1", "0", "+1"] = Field(description="Ajuste de la política")
     motivo_ajuste: str = Field(description="Pocas palabras o vacío")
     affected: Afectados

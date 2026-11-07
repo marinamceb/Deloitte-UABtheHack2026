@@ -7,6 +7,8 @@
    identidad cloud) con menos de VENTANA_H horas entre una y la siguiente (enlace en cadena: un incidente puede durar
    días). Las entidades que aparecen en más de MAX_ALERTAS_ENTIDAD alertas (concentradores como wetransfer.com o
    la IP de salida corporativa) no enlazan.
+   Las alertas cubiertas por el mismo cambio aprobado (por origen autorizado, ver cambios.py) se enlazan siempre:
+   son una única actividad autorizada (p. ej. las alertas del pentest desde tres IPs).
 3. Las componentes conexas son los incidentes candidatos. El modelo los revisa y confirma qué alertas pertenecen al
    mismo ataque; el código solo propone.
 
@@ -79,7 +81,9 @@ def construir() -> dict[str, list[str]]:
     alertas = todas_las_alertas()
     frec_patron = collections.Counter(p for a in alertas.values() if (p := _patron(a)))
     senal = [a for a in alertas.values() if not ((p := _patron(a)) and frec_patron[p] >= UMBRAL_RUIDO)]
-    frec_ent = collections.Counter(x for a in senal for x in entidades(a))
+    from . import cambios
+    ent_alerta = {a["alert_id"]: entidades(a) | {"chg:" + c for c in cambios.ids_que_cubren(a)} for a in senal}
+    frec_ent = collections.Counter(x for a in senal for x in ent_alerta[a["alert_id"]])
 
     padre = {a["alert_id"]: a["alert_id"] for a in senal}
 
@@ -91,13 +95,13 @@ def construir() -> dict[str, list[str]]:
 
     por_entidad = collections.defaultdict(list)
     for a in senal:
-        for x in entidades(a):
-            if frec_ent[x] <= MAX_ALERTAS_ENTIDAD:
+        for x in ent_alerta[a["alert_id"]]:
+            if x.startswith("chg:") or frec_ent[x] <= MAX_ALERTAS_ENTIDAD:
                 por_entidad[x].append(a)
-    for lista in por_entidad.values():
+    for x, lista in por_entidad.items():
         lista.sort(key=_fecha)
         for p, q in zip(lista, lista[1:]):
-            if (_fecha(q) - _fecha(p)).total_seconds() <= VENTANA_H * 3600:
+            if x.startswith("chg:") or (_fecha(q) - _fecha(p)).total_seconds() <= VENTANA_H * 3600:
                 padre[raiz(p["alert_id"])] = raiz(q["alert_id"])
 
     grupos = collections.defaultdict(list)

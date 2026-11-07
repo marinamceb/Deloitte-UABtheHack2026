@@ -7,7 +7,7 @@ import os
 import time
 from pathlib import Path
 
-from . import herramientas, incidentes, plantillas, politica, reglas_internas
+from . import cambios, herramientas, incidentes, plantillas, politica, reglas_internas, severidad
 from .modelos import calcular_severidad
 from .preinvestigacion import preinvestigar
 from .prompts import construir_prompt_sistema, contexto_regla
@@ -92,16 +92,22 @@ def _ticket_sin_conclusion(alerta: dict, motivo: str) -> dict:
     }
 
 
-def _componer(alerta: dict, t: dict, comprobaciones: list[dict] = ()) -> dict:
-    """Pasa la salida del modelo al formato de ticket_salida.schema.json, con la severidad calculada por código."""
-    severidad, explicacion = calcular_severidad(_severidad_regla(alerta, t["alert_ids"]), t)
+def _componer(alerta: dict, t: dict, comprobaciones: list[dict] = ()) -> tuple[dict, dict]:
+    """Pasa la salida del modelo al formato de ticket_salida.schema.json. La criticidad y el ajuste se recalculan con
+    el inventario (severidad.py) y la matriz se aplica por código. Devuelve (ticket, salida del modelo corregida)."""
+    todas = incidentes.todas_las_alertas()
+    alertas = [alerta] + [todas[i] for i in t["alert_ids"] if i != alerta["alert_id"] and i in todas]
+    t, notas = severidad.revisar(t, alertas)
+    sev, explicacion = calcular_severidad(_severidad_regla(alerta, t["alert_ids"]), t)
     claves = ["alert_ids", "title", "verdict", "confidence", "affected", "summary", "evidence", "enrichment", "mitre",
               "recommended_actions", "escalation", "open_questions"]
     ticket = {k: t[k] for k in claves}
-    ticket.update(severity=severidad, severity_rationale=explicacion)
+    ticket.update(severity=sev, severity_rationale=explicacion)
     if not ticket["escalation"]["escalate"]:
         ticket["escalation"] = {"escalate": False, "to": "", "reason": ""}
-    return politica.validar(ticket, alerta, comprobaciones)
+    ticket = politica.validar(ticket, alerta, comprobaciones)
+    ticket["ajustes_politica"] = notas + ticket["ajustes_politica"]
+    return ticket, t
 
 
 def triar(alerta: dict, effort: str = "high", max_iteraciones: int = 25, usar_plantillas: bool = True) -> dict:
@@ -117,8 +123,12 @@ def triar(alerta: dict, effort: str = "high", max_iteraciones: int = 25, usar_pl
     todas = incidentes.todas_las_alertas()
     otras = [todas[i] for i in incidente if i != alerta["alert_id"] and i in todas]
     comprobaciones = reglas_internas.evaluar(alerta, otras)
-    # Una alerta que incumple una regla interna o a la que le falta información no hereda veredicto de una plantilla
-    limpia = reglas_internas.resumen_estado(comprobaciones) in ("", reglas_internas.PERMITIDA)
+    ya = {e for c in comprobaciones for e in c["evidencias"]}
+    comprobaciones += cambios.evaluar(alerta, ya)
+    # No hereda veredicto de una plantilla: la alerta que incumple una regla, a la que le falta información, o que
+    # está ligada a un cambio aprobado (la actividad autorizada se tría y argumenta como tal)
+    limpia = (reglas_internas.resumen_estado(comprobaciones) in ("", reglas_internas.PERMITIDA)
+              and not any(c["tipo"] == "cambio" and c["estado"] == reglas_internas.PERMITIDA for c in comprobaciones))
     ref = plantillas.buscar(alerta, SALIDAS / "tickets") if usar_plantillas and limpia else None
 
     if ref:
@@ -129,11 +139,12 @@ def triar(alerta: dict, effort: str = "high", max_iteraciones: int = 25, usar_pl
         investigacion = preinvestigar(alerta, otras)
         r = motor().ejecutar(_SISTEMA, _mensaje_usuario(alerta, investigacion, incidente, comprobaciones), effort,
                              max_iteraciones)
-        ticket = (_componer(alerta, r["ticket"], comprobaciones) if r["ticket"]
-                  else _ticket_sin_conclusion(alerta, r["motivo"]))
-        entrada = ({k: r["ticket"][k] for k in ("activo_mas_critico", "criticidad", "ajuste", "motivo_ajuste",
-                                               "patron_generalizable")}
-                   if r["ticket"] else None)
+        if r["ticket"]:
+            ticket, corregido = _componer(alerta, r["ticket"], comprobaciones)
+            entrada = {k: corregido[k] for k in ("activo_mas_critico", "criticidad", "ajuste", "motivo_ajuste",
+                                                 "patron_generalizable")}
+        else:
+            ticket, entrada = _ticket_sin_conclusion(alerta, r["motivo"]), None
 
     if alerta["alert_id"] not in ticket["alert_ids"]:
         ticket["alert_ids"].insert(0, alerta["alert_id"])

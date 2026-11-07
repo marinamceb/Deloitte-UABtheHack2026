@@ -22,7 +22,8 @@ orden y aplica su apartado «Decisión». Si el incidente toca otra regla, puede
 Revisa el calendario de cambios y las reglas internas de la ficha de empresa antes de declarar algo malicioso.
    Si el mensaje trae <comprobaciones_internas>, son las reglas internas de la empresa ya comprobadas por código: \
 ✓ permitida (cumple la regla o la cubre un cambio aprobado), ⚠ sospechosa (la incumple), ? requiere_info (faltan datos: \
-no la des por buena y ponlo en open_questions). Úsalas como hechos y cita sus evidencias.
+no la des por buena y ponlo en open_questions), ℹ informativa (contexto: p. ej. hay un cambio en curso pero no cubre \
+esta alerta). Incluyen el cruce con el calendario de cambios. Úsalas como hechos y cita sus evidencias.
 3. Enriquece cada indicador externo (IP, dominio, URL, hash) con inteligencia y sandbox.
 4. Correlaciona: busca otras alertas y logs de las mismas entidades en ±24 h; amplía la ventana si ves indicios de una \
 cadena de días. La clave a menudo está en eventos que no aparecen en `related_events`. Si encuentras alertas del mismo \
@@ -31,9 +32,11 @@ que comparten entidades: confírmalas o descártalas una a una; la severidad se 
 incluyas.
 5. Decide el veredicto (true_positive, benign_true_positive, false_positive, o needs_more_info si de verdad no se puede \
 decidir con los datos). No calcules la severidad final: indica el activo o identidad más crítica afectada, su \
-criticidad (CMDB; una identidad es Alta si es privilegiada o VIP y Media si no) y el ajuste de la política (+1, 0 o -1, \
-máximo un nivel); el sistema aplica la matriz del apartado 2. \
-La actividad ligada a un cambio aprobado o a un flujo autorizado es benign_true_positive.
+criticidad y el ajuste de la política (+1, 0 o -1, máximo un nivel). El sistema recalcula la criticidad con la CMDB y \
+servicios_negocio.csv (las identidades cuentan como Media: ser VIP o privilegiada es el ajuste +1, no criticidad), \
+verifica el -1 y aplica la matriz del apartado 2. \
+La actividad ligada a un cambio aprobado o a un flujo autorizado es benign_true_positive, y debes citar en el resumen \
+o en las evidencias el identificador que la autoriza (CHG-…, FLUJO-…): sin esa cita el sistema no la acepta.
 6. Propón acciones según el apartado 4 de la política, marcando `requires_approval` según quién debe aprobarlas. Tú no \
 ejecutas nada: solo propones. Nunca propongas acciones sobre la red OT: escala a Operaciones. No propongas bloquear \
 globalmente servicios legítimos de uso dual (mega.nz, AnyDesk...) sin N2.
