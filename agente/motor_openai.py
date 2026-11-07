@@ -4,10 +4,12 @@ Diferencias con el motor Claude:
 - El bucle de herramientas está escrito a mano.
 - El ticket se entrega llamando a la herramienta `emitir_ticket`; se valida con Pydantic y, si no es válido, se le
   devuelve el error al modelo para que lo corrija.
-- Los planes gratuitos tienen límites por minuto y por día: el cliente reintenta con espera ante 429.
+- Los planes gratuitos tienen límites por minuto y por día: ante un 429 por minuto se espera lo que indica el
+  proveedor; ante la cuota diaria agotada se lanza CuotaAgotada para parar el lote (no es un fallo de triaje).
 """
 import json
 import os
+import re
 import time
 
 import openai
@@ -30,6 +32,12 @@ RPM = float(os.environ.get("TRIAJE_RPM", "5" if PROVEEDOR == "gemini" else "0"))
 _client = None
 _ultima_peticion = 0.0
 
+
+
+class CuotaAgotada(Exception):
+    """Cuota diaria del proveedor agotada: no tiene sentido seguir triando hasta que se reinicie."""
+
+
 CIERRE = ("Cuando hayas terminado de investigar, entrega el resultado llamando a la herramienta `emitir_ticket` "
           "(una sola vez, como última acción). No escribas el ticket como texto.")
 
@@ -42,8 +50,8 @@ def cliente() -> openai.OpenAI:
             raise SystemExit(f"Falta la variable de entorno {_VAR_CLAVE} para el proveedor '{PROVEEDOR}'.")
         if not MODELO:
             raise SystemExit(f"Indica el modelo con TRIAJE_MODELO para el proveedor '{PROVEEDOR}'.")
-        # max_retries con espera exponencial (respeta retry-after) para los 429 de los planes gratuitos
-        _client = openai.OpenAI(base_url=_URL, api_key=clave, max_retries=3, timeout=90)
+        # Los 429 se gestionan en _llamar (distinguir límite por minuto de cuota diaria); el SDK solo reintenta red/5xx
+        _client = openai.OpenAI(base_url=_URL, api_key=clave, max_retries=2, timeout=90)
     return _client
 
 
@@ -55,6 +63,26 @@ def _respetar_rpm() -> None:
             print(f"    … esperando {espera:.0f} s (límite de {RPM:g} peticiones/min)", flush=True)
             time.sleep(espera)
     _ultima_peticion = time.time()
+
+
+def _llamar(**kw):
+    """Una petición al modelo respetando el ritmo y los 429 del plan gratuito."""
+    for intento in range(4):
+        _respetar_rpm()
+        try:
+            return cliente().with_options(max_retries=0 if intento else 2).chat.completions.create(**kw)
+        except openai.RateLimitError as e:
+            texto = e.response.text
+            if "per day" in texto or "PerDay" in texto:
+                espera = re.search(r"retry in ([0-9hms.]+)", texto)
+                raise CuotaAgotada(f"cuota diaria de {MODELO} agotada"
+                                   + (f"; se reinicia en {espera.group(1)}" if espera else "")
+                                   + ". Prueba otro modelo (TRIAJE_MODELO), que tiene su propia cuota, o espera.")
+            m = re.search(r"retry in ([0-9.]+)s", texto)
+            espera = float(m.group(1)) + 1 if m else 30
+            print(f"    … límite por minuto alcanzado, reintento en {espera:.0f} s", flush=True)
+            time.sleep(espera)
+    raise CuotaAgotada(f"{MODELO} sigue devolviendo 429 tras varios reintentos")
 
 
 def _limpiar_esquema(esquema: dict) -> dict:
@@ -100,13 +128,8 @@ def ejecutar(sistema: str, mensaje: str, effort: str, max_iteraciones: int) -> d
     out = {"ticket": None, "motivo": "", "uso": uso, "razonamiento": razonamiento, "modelo": f"{PROVEEDOR}/{MODELO}"}
 
     for _ in range(max_iteraciones):
-        _respetar_rpm()
         try:
-            r = cliente().chat.completions.create(model=MODELO, messages=mensajes, tools=tools, tool_choice="auto",
-                                                  **extra)
-        except openai.RateLimitError as e:
-            out["motivo"] = f"límite de uso del proveedor agotado (429): {e.message}"
-            return out
+            r = _llamar(model=MODELO, messages=mensajes, tools=tools, tool_choice="auto", **extra)
         except openai.APIStatusError as e:
             out["motivo"] = f"error del proveedor ({e.status_code}): {e.response.text[:300]}"
             return out

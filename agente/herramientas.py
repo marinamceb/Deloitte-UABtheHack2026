@@ -6,6 +6,7 @@ Cada llamada queda registrada en TRAZA para que la demo pueda enseñar qué cons
 import datetime as dt
 import json
 import os
+import re
 import time
 
 import requests
@@ -19,6 +20,13 @@ FUENTES_LOG = [
 ]
 
 TRAZA: list[dict] = []  # se reinicia por alerta desde triaje.py
+ORIGEN = "agente"  # "auto" mientras corre la investigación previa (preinvestigacion.py); queda en la traza
+
+
+def _coincide(texto: str, obj) -> bool:
+    """Búsqueda de entidad con límites: '198.18.58.15' no debe casar con '198.18.58.150' ni 'WS-1' con 'WS-17'."""
+    patron = r"(?<![0-9A-Za-z])" + re.escape(texto.lower()) + r"(?![0-9A-Za-z])"
+    return re.search(patron, json.dumps(obj, ensure_ascii=False).lower()) is not None
 
 
 def _get(ruta: str, params: dict | None = None):
@@ -45,7 +53,7 @@ def _salida(nombre: str, args: dict, datos, error: str | None, ms: int) -> str:
     if total > MAX_CHARS:
         texto = texto[:MAX_CHARS] + (f"\n[RECORTADO: se muestran {MAX_CHARS} de {total} caracteres. "
                                      "Afina la búsqueda con un texto más concreto o una ventana de tiempo menor.]")
-    TRAZA.append({"tool": nombre, "args": args, "ms": ms, "chars": total, "error": error,
+    TRAZA.append({"tool": nombre, "args": args, "origen": ORIGEN, "ms": ms, "chars": total, "error": error,
                   "preview": texto[:300]})
     # Delimitar los datos: su contenido puede haberlo escrito el atacante y nunca son instrucciones.
     return f"<datos_no_confiables herramienta=\"{nombre}\">\n{texto}\n</datos_no_confiables>"
@@ -53,10 +61,10 @@ def _salida(nombre: str, args: dict, datos, error: str | None, ms: int) -> str:
 
 @beta_tool
 def consultar_alerta(alert_id: str) -> str:
-    """Devuelve el detalle completo de una alerta del SIEM.
+    """Detalle de otra alerta del SIEM.
 
     Args:
-        alert_id: Identificador de la alerta, p. ej. ALR-20261005-000301.
+        alert_id: p. ej. ALR-20261005-000301.
     """
     d, e, ms = _get(f"/alerts/{alert_id}")
     return _salida("consultar_alerta", {"alert_id": alert_id}, d, e, ms)
@@ -64,19 +72,17 @@ def consultar_alerta(alert_id: str) -> str:
 
 @beta_tool
 def buscar_alertas_relacionadas(texto: str, desde: str, hasta: str, limit: int = 30) -> str:
-    """Busca otras alertas del SIEM en una ventana de tiempo que mencionen una entidad (usuario, host, IP, dominio,
-    hash...). Úsala para correlacionar (±24 h por defecto, más si sospechas una campaña de días).
+    """Alertas del SIEM que mencionan una entidad en una ventana de tiempo.
 
     Args:
-        texto: Entidad a buscar (subcadena, sin distinguir mayúsculas), p. ej. WS-BCN-1174 o 203.0.113.7.
-        desde: Inicio de la ventana en ISO 8601 UTC, p. ej. 2026-10-05T00:00:00Z.
-        hasta: Fin de la ventana en ISO 8601 UTC.
-        limit: Máximo de alertas a devolver (resumidas).
+        texto: Entidad exacta (usuario, host, IP, dominio, hash).
+        desde: ISO 8601 UTC.
+        hasta: ISO 8601 UTC.
+        limit: Máximo de alertas.
     """
     d, e, ms = _get("/alerts", {"status": "new", "desde": desde, "hasta": hasta, "limit": 20000})
     if d is not None:
-        t = texto.lower()
-        hits = [a for a in d["items"] if t in json.dumps(a, ensure_ascii=False).lower()]
+        hits = [a for a in d["items"] if _coincide(texto, a)]
         d = {"total_coincidencias": len(hits), "items": [
             {k: a.get(k) for k in ("alert_id", "created_at", "rule_id", "rule_name", "severity", "entities",
                                    "related_events")} for a in hits[:limit]]}
@@ -85,11 +91,10 @@ def buscar_alertas_relacionadas(texto: str, desde: str, hasta: str, limit: int =
 
 @beta_tool
 def consultar_activo(hostname_o_ip: str) -> str:
-    """CMDB: criticidad, zona de red, servicio de negocio, propietario, si tiene EDR y vulnerabilidades del activo.
-    Un 404 significa que el equipo NO está en la CMDB (externo o no gestionado), lo cual es un hallazgo en sí.
+    """CMDB: criticidad, zona, servicio, propietario, EDR y vulnerabilidades. 404 = no gestionado.
 
     Args:
-        hostname_o_ip: Hostname (p. ej. WS-BCN-1174) o IP interna.
+        hostname_o_ip: Hostname o IP interna.
     """
     d, e, ms = _get(f"/assets/{hostname_o_ip}")
     return _salida("consultar_activo", {"hostname_o_ip": hostname_o_ip}, d, e, ms)
@@ -97,11 +102,10 @@ def consultar_activo(hostname_o_ip: str) -> str:
 
 @beta_tool
 def consultar_usuario(upn_o_username: str) -> str:
-    """Directorio: departamento, cargo, privilegios, VIP, método MFA, estado, manager, puesto asignado y eventos de
-    RRHH (bajas, viajes, cambios de puesto).
+    """Directorio: cargo, privilegios, VIP, MFA, estado, puesto y eventos de RRHH.
 
     Args:
-        upn_o_username: UPN (nombre@tarvia.example) o nombre de usuario.
+        upn_o_username: UPN o nombre de usuario.
     """
     d, e, ms = _get(f"/users/{upn_o_username}")
     return _salida("consultar_usuario", {"upn_o_username": upn_o_username}, d, e, ms)
@@ -109,31 +113,33 @@ def consultar_usuario(upn_o_username: str) -> str:
 
 @beta_tool
 def buscar_logs(fuente: str, texto: str, desde: str = "", hasta: str = "", limit: int = 50) -> str:
-    """Busca eventos en los logs crudos de una fuente. La búsqueda es por subcadena sobre el evento completo.
-    Recuerda que la clave suele estar en eventos que NO aparecen en related_events de la alerta.
+    """Eventos de una fuente de log que contienen la entidad o texto exacto.
 
     Args:
-        fuente: Una de ad_events, ai_gateway, cicd_builds, cloudtrail, dlp, dns, ecom_account, ecom_auth, edr_events,
-            email, email_clicks, firewall, idp_audit, idp_signins, proxy, sql_audit, vpn, waf.
-        texto: Subcadena a buscar (ID de evento, usuario, host, IP, dominio, message_id, hash...).
-        desde: Inicio opcional en ISO 8601 UTC.
-        hasta: Fin opcional en ISO 8601 UTC.
+        fuente: ad_events, ai_gateway, cicd_builds, cloudtrail, dlp, dns, ecom_account, ecom_auth, edr_events, email,
+            email_clicks, firewall, idp_audit, idp_signins, proxy, sql_audit, vpn o waf.
+        texto: ID de evento, usuario, host, IP, dominio, message_id, hash...
+        desde: ISO 8601 UTC (opcional).
+        hasta: ISO 8601 UTC (opcional).
         limit: Máximo de eventos (1-200).
     """
     if fuente not in FUENTES_LOG:
         raise ValueError(f"Fuente desconocida '{fuente}'. Válidas: {', '.join(FUENTES_LOG)}")
     limit = max(1, min(int(limit), 200))
-    d, e, ms = _get(f"/logs/{fuente}", {"q": texto, "desde": desde, "hasta": hasta, "limit": limit})
+    # La API filtra por subcadena: se piden más eventos y se descartan los que solo casan como parte de otra palabra.
+    d, e, ms = _get(f"/logs/{fuente}", {"q": texto, "desde": desde, "hasta": hasta, "limit": min(limit * 5, 2000)})
+    if d is not None:
+        items = [x for x in d["items"] if _coincide(texto, x)]
+        d = {"count": min(len(items), limit), "truncated": len(items) > limit or d["truncated"], "items": items[:limit]}
     return _salida("buscar_logs", {"fuente": fuente, "texto": texto, "desde": desde, "hasta": hasta}, d, e, ms)
 
 
 @beta_tool
 def consultar_inteligencia(indicador: str) -> str:
-    """TIP interno + GeoIP/ASN de un indicador (IP, dominio, URL o hash). Un indicador desconocido NO es un indicador
-    limpio: indícalo como 'sin datos', no como benigno.
+    """TIP interno + GeoIP/ASN de una IP, dominio, URL o hash.
 
     Args:
-        indicador: Valor exacto del indicador.
+        indicador: Valor exacto.
     """
     d, e, ms = _get(f"/intel/{indicador}")
     return _salida("consultar_inteligencia", {"indicador": indicador}, d, e, ms)
@@ -141,10 +147,10 @@ def consultar_inteligencia(indicador: str) -> str:
 
 @beta_tool
 def consultar_sandbox(sha256: str) -> str:
-    """Informe de sandbox de un fichero, si se envió. 404 = nunca se analizó (no implica que sea limpio).
+    """Informe de sandbox de un fichero. 404 = nunca analizado.
 
     Args:
-        sha256: Hash SHA-256 del fichero.
+        sha256: Hash SHA-256.
     """
     d, e, ms = _get(f"/sandbox/{sha256}")
     return _salida("consultar_sandbox", {"sha256": sha256}, d, e, ms)
@@ -152,19 +158,32 @@ def consultar_sandbox(sha256: str) -> str:
 
 @beta_tool
 def buscar_cambios(texto: str) -> str:
-    """Calendario de cambios y flujos aprobados (pentests, mantenimientos, despliegues). Una alerta que coincide con un
-    cambio aprobado (objeto, fechas y origen) es benign_true_positive.
+    """Calendario de cambios y flujos aprobados.
 
     Args:
-        texto: Subcadena a buscar (host, IP, servicio, usuario, palabra clave como pentest).
+        texto: Host, IP, usuario, servicio o palabra clave.
     """
     d, e, ms = _get("/changes", {"q": texto})
     return _salida("buscar_cambios", {"texto": texto}, d, e, ms)
 
 
+@beta_tool
+def leer_runbook(runbook: str) -> str:
+    """Runbook de otra regla (el de la alerta ya está en el mensaje).
+
+    Args:
+        runbook: RB-01 a RB-10.
+    """
+    from .prompts import texto_runbook
+    t0 = time.time()
+    texto = texto_runbook(runbook)
+    return _salida("leer_runbook", {"runbook": runbook}, texto, None if texto else f"runbook desconocido: {runbook}",
+                   int((time.time() - t0) * 1000))
+
+
 HERRAMIENTAS = [
     consultar_alerta, buscar_alertas_relacionadas, consultar_activo, consultar_usuario, buscar_logs,
-    consultar_inteligencia, consultar_sandbox, buscar_cambios,
+    consultar_inteligencia, consultar_sandbox, buscar_cambios, leer_runbook,
 ]
 
 

@@ -17,14 +17,15 @@ def revisar_acciones(resultado: dict, aprobador: str) -> None:
         return
     print(f"\n  Acciones de contención propuestas para {ticket['ticket_id']}:")
     for a in propuestas:
-        nivel = "N1 (tú)" if a["action"] in SIN_APROBACION_N2 else "requiere N2 / responsable"
+        nivel = ("N1 (tú)" if a["action"] in SIN_APROBACION_N2 and not a["requires_approval"]
+                 else "aprobación: " + (a.get("approvers") or "N2"))
         print(f"   - {a['action']} → {a['target']}  [{nivel}]\n     {a['justification']}")
         if input("     ¿Ejecutar? [s/N] ").strip().lower() != "s":
             ticket["executed_actions"].append({"action": a["action"], "target": a["target"], "result": "rechazada",
                                                "decided_by": aprobador, "timestamp": ahora_iso()})
             continue
         token = ""
-        if a["action"] not in SIN_APROBACION_N2:
+        if a["action"] not in SIN_APROBACION_N2 or a["requires_approval"]:
             r = requests.post(f"{API_URL}/approvals", json={"action": a["action"], "target": a["target"],
                               "approver": aprobador, "reason": a["justification"]}, timeout=30)
             r.raise_for_status()
