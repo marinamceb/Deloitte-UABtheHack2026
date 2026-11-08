@@ -1,6 +1,0 @@
-# Contexto de construcción de docker/soc-api.Dockerfile (la raíz): solo lo que copia esa imagen.
-# El dataset (256 MB de logs) se monta en tiempo de ejecución, no se copia.
-*
-!docker/
-!DTT-UAB-The-Hack-main/06_herramientas/mock_soc_api.py
-!DTT-UAB-The-Hack-main/06_herramientas/requirements.txt

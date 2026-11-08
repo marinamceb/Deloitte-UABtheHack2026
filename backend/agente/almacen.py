@@ -131,3 +131,19 @@ def registrar_acceso(evento: dict) -> None:
         SALIDAS.mkdir(parents=True, exist_ok=True)
         with open(SALIDAS / "accesos.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(evento, ensure_ascii=False) + "\n")
+
+
+# --------------------------------------------------------------------------------------------- otros JSON (avisos...)
+
+def leer_json(nombre: str, defecto):
+    p = SALIDAS / nombre
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else defecto
+
+
+def guardar_json(nombre: str, datos) -> None:
+    """Escritura atómica (temporal + renombrado) de un JSON de salidas/. Llamar con CERROJO si hay concurrencia."""
+    p = SALIDAS / nombre
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, p)

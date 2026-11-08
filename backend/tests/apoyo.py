@@ -32,17 +32,22 @@ def alerta(rule_id="UC-X", created_at="2026-10-14T10:00:00Z", entities=None, evi
 # Directorio, CMDB, TIP y API de contención falsos (nada se ejecuta en la API real, que escribiría en
 # containment_log.jsonl) y un ticket + un informe con acciones propuestas. Lo usan tests/nivel4.
 
-PERSONAS = {
-    "neus.benitez@tarvia.example": ("Neus Benítez", "Ciberseguridad", "Analista SOC N1"),
-    "pablo.coll@tarvia.example": ("Pablo Coll", "Ciberseguridad", "Analista SOC N2"),
-    "berta.gimenez@tarvia.example": ("Berta Giménez", "Ciberseguridad", "Analista SOC N2"),
-    "celia.llorens@tarvia.example": ("Celia Llorens", "Ciberseguridad", "Responsable SOC"),
+# Equipo del SOC: tabla users en memoria con los usuarios de db/usuarios_soc.sql más un segundo N2 (cuatro ojos).
+# La tabla real (PostgreSQL) la prueba tests/nivel4/test_usuarios_postgres.py.
+N1, N2, N2B, RSOC, CISO, DET = ("n1@soc.example", "n2@soc.example", "n2b@soc.example", "responsable@soc.example",
+                                "ciso@soc.example", "deteccion@soc.example")
+CLAVES = {"n1": "n1demo", "n2": "n2demo", "responsable": "rsocdemo", "ciso": "cisodemo", "deteccion": "detdemo",
+          "n2b": "n2bdemo"}
+ROLES_DEMO = {"n1": "N1", "n2": "N2", "responsable": "responsable_soc", "ciso": "ciso", "deteccion": "deteccion",
+              "n2b": "N2"}
+NOMBRES_DEMO = {"n1": "Analista N1 (demo)", "n2": "Analista N2 (demo)", "responsable": "Responsable SOC (demo)",
+                "ciso": "CISO (demo)", "deteccion": "Detección (demo)", "n2b": "Segundo N2 (test)"}
+# Directorio de Tarvia (la empresa monitorizada): no entra en la consola
+EMPRESA = {
     "alejandro.benitez@tarvia.example": ("Alejandro Benítez", "Dirección", "Director de Tecnología"),
     "elena.mora@tarvia.example": ("Elena Mora", "Legal y Cumplimiento", "DPO"),
     "marta.puig@tarvia.example": ("Marta Puig", "Finanzas", "Técnico de Cuentas a Pagar"),
 }
-N1, N2, N2B, RSOC = "neus.benitez@tarvia.example", "pablo.coll@tarvia.example", "berta.gimenez@tarvia.example", \
-    "celia.llorens@tarvia.example"
 DIRTEC = "alejandro.benitez@tarvia.example"
 ACTIVOS = {
     "FS01": {"hostname": "FS01", "type": "Servidor de ficheros", "criticality": "Alta", "zone": "SERVERS",
@@ -59,10 +64,19 @@ TIP = {"mega.nz": {"reputation": "benign", "tags": "dual-use,legit-service"}}
 
 @pytest.fixture
 def soc(monkeypatch, tmp_path):
-    from agente import acciones, almacen, api
-    """Directorio, CMDB, TIP y API de contención falsos; tickets e informes en tmp_path."""
+    """Usuarios del SOC en una base temporal; directorio de la empresa, CMDB, TIP y API de contención falsos;
+    tickets e informes en tmp_path."""
+    from agente import acciones, almacen, api, usuarios_soc
+    tabla = [{"id": i, "usuario": u, "email": f"{u}@soc.example", "rol": ROLES_DEMO[u], "password": CLAVES[u],
+              "nombre": NOMBRES_DEMO[u],
+              "turno": "L-V 8-20", "telefono": None, "activo": True} for i, u in enumerate(CLAVES, 1)]
+    monkeypatch.setattr(usuarios_soc, "_buscar", lambda clave: next(
+        (f for f in tabla if f["activo"] and clave in (f["usuario"].lower(), f["email"].lower())), None))
+    monkeypatch.setattr(usuarios_soc, "_marcar_login", lambda id_usuario: None)
+    monkeypatch.setattr(usuarios_soc, "_todos", lambda: [f for f in tabla if f["activo"]])
+    monkeypatch.setattr(usuarios_soc, "inicializar", lambda: len(tabla))
     fichas = {e: {"upn": e, "display_name": n, "department": d, "title": t, "status": "active",
-                  "account_type": "user", "vip": "False"} for e, (n, d, t) in PERSONAS.items()}
+                  "account_type": "user", "vip": "False"} for e, (n, d, t) in EMPRESA.items()}
     fichas["svc_backup"] = {"upn": "svc_backup@tarvia.example", "display_name": "Copias", "account_type": "service"}
     monkeypatch.setattr(api, "usuario", lambda k, trazar=True: fichas.get(k))
     monkeypatch.setattr(api, "activo", lambda k, trazar=True: ACTIVOS.get(k.upper()))
@@ -102,4 +116,5 @@ def soc(monkeypatch, tmp_path):
          "justification": "C2"}]}}
     (tmp_path / "informes" / "INC-1.json").write_text(json.dumps(informe))
     acciones.sincronizar()
+    estado["usuarios"] = tabla   # para que un test pueda desactivar una cuenta
     return estado

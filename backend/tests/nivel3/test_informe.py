@@ -102,3 +102,60 @@ def test_generar_con_motor_falso(tmp_path, monkeypatch):
     assert not r["con_llm"] and (tmp_path / "informes" / "INC-20261015-011819.json").exists()
     assert "CI-0000602" in {x["event_id"] for x in r["informe"]["timeline"]}
     assert any("fallo simulado" in q for q in r["informe"]["open_questions"])
+
+
+# --------------------------------------------------------------------------------------------- optimizaciones 1, 4 y 5
+
+HECHOS_COMPLETOS = {**HECHOS, "huecos": [], "acceso_inicial_candidatos": [
+    {"event_id": "CI-0000602", "timestamp": "2026-10-13T12:22:00.000Z", "description": "build", "nivel": "pivote"}]}
+
+
+def test_huella_estable_y_sensible():
+    a = informe.huella(HECHOS_COMPLETOS)
+    assert a == informe.huella(dict(HECHOS_COMPLETOS))
+    otro = {**HECHOS_COMPLETOS, "cronologia": HECHOS_COMPLETOS["cronologia"][:1]}
+    assert informe.huella(otro) != a
+
+
+def test_cronologia_para_llm_prioriza_y_respeta_el_orden():
+    crono = [{"event_id": f"E{i}", "timestamp": f"{i:02d}", "nivel": "pivote" if i % 2 else "núcleo",
+              "senales": ["raro: x"] if i % 2 else ["alerta: y"], "description": "d"} for i in range(10)]
+    elegidas = informe.cronologia_para_llm({"cronologia": crono, "acceso_inicial_candidatos": [{"event_id": "E9"}]}, 6)
+    ids = [x["event_id"] for x in elegidas]
+    assert ids == sorted(ids) and "E9" in ids and {"E0", "E2", "E4", "E6", "E8"} <= set(ids)
+
+
+def test_cache_y_sin_herramientas(tmp_path, monkeypatch):
+    llamadas = []
+
+    class Motor:
+        @staticmethod
+        def ejecutar(*a, **k):
+            llamadas.append(k)
+            return {"salida": None, "motivo": "simulado", "uso": {"input_tokens": 0, "output_tokens": 0},
+                    "razonamiento": [], "modelo": "falso"}
+    monkeypatch.setattr(informe, "motor", lambda: Motor)
+    monkeypatch.setattr(almacen, "SALIDAS", tmp_path)
+    monkeypatch.setattr(informe.investigacion, "investigar", lambda ids: HECHOS_COMPLETOS)
+    monkeypatch.setattr(informe, "resolver", lambda ids: ids)
+    monkeypatch.setattr(informe, "mensaje", lambda h: "hechos")
+    monkeypatch.setattr(informe, "componer", lambda llm, h: ({"incident_id": "INC-20261015-011819"}, []))
+    informe.generar(["A"])
+    assert llamadas[0]["con_herramientas"] is False                        # optimización 1: sin herramientas
+    previo = almacen.informe("INC-20261015-011819")
+    almacen.guardar_informe({**previo, "con_llm": True})                  # como si el LLM lo hubiera redactado
+    r = informe.generar(["A"])
+    assert r["reutilizado"] and len(llamadas) == 1                         # optimización 5: misma huella, sin LLM
+    assert informe.generar(["A"], forzar=True) and len(llamadas) == 2
+    assert informe.generar(["A"], usar_llm=False)["no_guardado"]           # un borrador no pisa el informe del LLM
+
+
+def test_preparar_solo_si_procede(monkeypatch):
+    llamadas = []
+    monkeypatch.setattr(informe.indice, "disponible", lambda: True)
+    monkeypatch.setattr(informe, "generar", lambda ids, usar_llm: llamadas.append((ids, usar_llm)) or
+                        {"informe": {"incident_id": "INC-X"}})
+    t = {"ticket_id": "TKT-1", "verdict": "true_positive", "severity": "critical", "escalation": {"escalate": True}}
+    assert informe.preparar({"ticket": t}) == "INC-X" and llamadas == [(["TKT-1"], False)]
+    assert informe.preparar({"ticket": {**t, "severity": "medium"}}) is None
+    assert informe.preparar({"ticket": {**t, "verdict": "false_positive"}}) is None

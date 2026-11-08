@@ -35,10 +35,14 @@ RPM = float(os.environ.get("TRIAJE_RPM", "5" if PROVEEDOR == "gemini" else "0"))
 
 
 def ejecutar(sistema: str, mensaje: str, effort: str, max_iteraciones: int, salida: type[BaseModel] = TicketTriaje,
-             herramienta_salida: str = "emitir_ticket") -> dict:
+             herramienta_salida: str = "emitir_ticket", con_herramientas: bool = True) -> dict:
+    """`con_herramientas=False`: el modelo solo puede entregar el resultado (una llamada, salvo que haya que corregir
+    la validación). Lo usa el informe del nivel 3, cuyos hechos ya vienen reunidos por código: cada vuelta de
+    herramientas reenvía todo el contexto y multiplicaba los tokens por 5-10."""
+    herramientas_modelo = herramientas.HERRAMIENTAS if con_herramientas else []
     if PROVEEDOR == "anthropic":
-        return _ejecutar_claude(sistema, mensaje, effort, max_iteraciones, salida)
-    return _ejecutar_openai(sistema, mensaje, effort, max_iteraciones, salida, herramienta_salida)
+        return _ejecutar_claude(sistema, mensaje, effort, max_iteraciones, salida, herramientas_modelo)
+    return _ejecutar_openai(sistema, mensaje, effort, max_iteraciones, salida, herramienta_salida, herramientas_modelo)
 
 
 # =============================================================================================== Claude (Anthropic)
@@ -46,7 +50,8 @@ def ejecutar(sistema: str, mensaje: str, effort: str, max_iteraciones: int, sali
 _cliente_claude = None
 
 
-def _ejecutar_claude(sistema: str, mensaje: str, effort: str, max_iteraciones: int, salida=TicketTriaje) -> dict:
+def _ejecutar_claude(sistema: str, mensaje: str, effort: str, max_iteraciones: int, salida=TicketTriaje,
+                     herramientas_modelo=None) -> dict:
     global _cliente_claude
     import anthropic
     if _cliente_claude is None:
@@ -62,7 +67,7 @@ def _ejecutar_claude(sistema: str, mensaje: str, effort: str, max_iteraciones: i
         max_tokens=16000,
         system=sistema,
         cache_control={"type": "ephemeral"},
-        tools=herramientas.HERRAMIENTAS,
+        tools=herramientas.HERRAMIENTAS if herramientas_modelo is None else herramientas_modelo,
         messages=[{"role": "user", "content": mensaje}],
         output_format=salida,
         output_config={"effort": effort},
@@ -173,9 +178,10 @@ def _limpiar_esquema(esquema: dict) -> dict:
     return resolver(esquema)
 
 
-def _herramientas_openai(salida=TicketTriaje, herramienta_salida: str = "emitir_ticket") -> list[dict]:
+def _herramientas_openai(salida=TicketTriaje, herramienta_salida: str = "emitir_ticket",
+                         herramientas_modelo=None) -> list[dict]:
     tools = []
-    for t in herramientas.HERRAMIENTAS:
+    for t in herramientas.HERRAMIENTAS if herramientas_modelo is None else herramientas_modelo:
         d = t.to_dict()
         tools.append({"type": "function", "function": {"name": d["name"], "description": d["description"],
                                                        "parameters": _limpiar_esquema(d["input_schema"])}})
@@ -187,9 +193,10 @@ def _herramientas_openai(salida=TicketTriaje, herramienta_salida: str = "emitir_
 
 
 def _ejecutar_openai(sistema: str, mensaje: str, effort: str, max_iteraciones: int, salida=TicketTriaje,
-                     herramienta_salida: str = "emitir_ticket") -> dict:
-    por_nombre = {t.name: t for t in herramientas.HERRAMIENTAS}
-    tools = _herramientas_openai(salida, herramienta_salida)
+                     herramienta_salida: str = "emitir_ticket", herramientas_modelo=None) -> dict:
+    disponibles = herramientas.HERRAMIENTAS if herramientas_modelo is None else herramientas_modelo
+    por_nombre = {t.name: t for t in disponibles}
+    tools = _herramientas_openai(salida, herramienta_salida, disponibles)
     cierre = CIERRE.format(h=herramienta_salida)
     mensajes = [{"role": "system", "content": sistema + "\n\n" + cierre}, {"role": "user", "content": mensaje}]
     extra = {"reasoning_effort": {"xhigh": "high", "max": "high"}.get(effort, effort)} if PROVEEDOR == "gemini" else {}

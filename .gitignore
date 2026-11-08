@@ -81,7 +81,8 @@ env/
 
 # Resultado generado por tests/evaluacion/evaluar.py
 backend/tests/evaluacion/resultado.json
+backend/tests/evaluacion/resultado_nivel3.json
 
 # Índice local de logs (agent.py --construir-indice)
-salidas/indice_logs.sqlite*
-salidas/indice_logs.tmp
+backend/salidas/indice_logs.sqlite*
+backend/salidas/indice_logs.tmp

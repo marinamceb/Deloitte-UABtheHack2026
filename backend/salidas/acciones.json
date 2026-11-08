@@ -1,0 +1,1097 @@
+{
+  "ACC-52a48ab8e1": {
+    "id": "ACC-52a48ab8e1",
+    "action": "isolate_host",
+    "target": "JENKINS-DEV01",
+    "tipo": "api",
+    "justificacion": "Aislar servidor comprometido para detener minería y evitar propagación lateral.",
+    "impacto": "Servidor CI/CD de criticidad Media: se para «Integración continua» (Despliegues de e-commerce)",
+    "origenes": [
+      {
+        "tipo": "ticket",
+        "id": "TKT-20261006-011826"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      },
+      {
+        "rol": "responsable_servicio",
+        "servicio": "Integración continua",
+        "cargo": "Director de Tecnología",
+        "etiqueta": "Director de Tecnología (responsable de Integración continua)"
+      }
+    ],
+    "politica": "N2 + responsable del servicio: Director de Tecnología (Integración continua)",
+    "motivo_politica": "Servidor CI/CD del servicio Integración continua",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.061511+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.061520+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en ticket TKT-20261006-011826"
+      }
+    ]
+  },
+  "ACC-5e274e8dbb": {
+    "id": "ACC-5e274e8dbb",
+    "action": "block_ioc",
+    "target": "141.94.96.144",
+    "tipo": "api",
+    "justificacion": "Bloquear IP C2 / pool de minería en el NGFW.",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "ticket",
+        "id": "TKT-20261006-011826"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.063136+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.063141+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en ticket TKT-20261006-011826"
+      }
+    ]
+  },
+  "ACC-cc9e3c0b1e": {
+    "id": "ACC-cc9e3c0b1e",
+    "action": "block_ioc",
+    "target": "45.148.10.121",
+    "tipo": "api",
+    "justificacion": "Bloquear IP atacante en WAF / NGFW.",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "ticket",
+        "id": "TKT-20261006-011826"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.064461+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.064466+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en ticket TKT-20261006-011826"
+      }
+    ]
+  },
+  "ACC-8632e7726c": {
+    "id": "ACC-8632e7726c",
+    "action": "block_ioc",
+    "target": "pool.supportxmr.com",
+    "tipo": "api",
+    "justificacion": "Bloquear dominio de pool de minería en DNS/proxy.",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "ticket",
+        "id": "TKT-20261006-011826"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.065703+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.065707+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en ticket TKT-20261006-011826"
+      }
+    ]
+  },
+  "ACC-1b9da6bb58": {
+    "id": "ACC-1b9da6bb58",
+    "action": "patch",
+    "target": "JENKINS-DEV01",
+    "tipo": "manual",
+    "justificacion": "Aplicar parche para CVE-2024-23897 y corregir la exposición indebida a Internet.",
+    "impacto": "Sin datos de impacto",
+    "origenes": [
+      {
+        "tipo": "ticket",
+        "id": "TKT-20261006-011826"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "tarea manual fuera de la API",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.065718+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.065720+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en ticket TKT-20261006-011826"
+      }
+    ]
+  },
+  "ACC-a62177b5fa": {
+    "id": "ACC-a62177b5fa",
+    "action": "block_ioc",
+    "target": "561c0d422068e204fbcaf5c3fbf6575d6cf6a9610dc530cabd18cafdbaeabf83",
+    "tipo": "api",
+    "justificacion": "Indicador malicioso según sandbox",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "ticket",
+        "id": "TKT-20261006-011826"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.066937+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.066943+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en ticket TKT-20261006-011826"
+      }
+    ]
+  },
+  "ACC-ca823ef0d2": {
+    "id": "ACC-ca823ef0d2",
+    "action": "block_ioc",
+    "target": "77.90.185.20",
+    "tipo": "api",
+    "justificacion": "Bloquear la IP de hosting maliciosa en el perímetro y proxy.",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "ticket",
+        "id": "TKT-20261011-011877"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.068247+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.068251+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en ticket TKT-20261011-011877"
+      }
+    ]
+  },
+  "ACC-1ebe265293": {
+    "id": "ACC-1ebe265293",
+    "action": "revoke_sessions",
+    "target": "ext.logisoft@tarvia.example",
+    "tipo": "api",
+    "justificacion": "Revocar todas las sesiones activas de la cuenta de proveedor externo.",
+    "impacto": "El usuario tendrá que volver a iniciar sesión en todas sus aplicaciones",
+    "origenes": [
+      {
+        "tipo": "ticket",
+        "id": "TKT-20261011-011877"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "acción disruptiva",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.068266+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.068267+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en ticket TKT-20261011-011877"
+      }
+    ]
+  },
+  "ACC-0c2f6a8bd6": {
+    "id": "ACC-0c2f6a8bd6",
+    "action": "disable_user",
+    "target": "ext.logisoft@tarvia.example",
+    "tipo": "api",
+    "justificacion": "Deshabilitar temporalmente la cuenta de proveedor para contener el acceso no autorizado.",
+    "impacto": "Logisoft Solutions (proveedor WMS) (Cuenta de proveedor) se queda sin acceso",
+    "origenes": [
+      {
+        "tipo": "ticket",
+        "id": "TKT-20261011-011877"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "acción disruptiva",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.069781+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.069786+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en ticket TKT-20261011-011877"
+      }
+    ]
+  },
+  "ACC-6289b3a7e4": {
+    "id": "ACC-6289b3a7e4",
+    "action": "isolate_host",
+    "target": "LT-T07-02",
+    "tipo": "api",
+    "justificacion": "Contener el equipo comprometido por acceso remoto no autorizado.",
+    "impacto": "Portátil de criticidad Media",
+    "origenes": [
+      {
+        "tipo": "ticket",
+        "id": "TKT-20261012-011829"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "puesto de trabajo",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.071201+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.071206+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en ticket TKT-20261012-011829"
+      }
+    ]
+  },
+  "ACC-84a7884191": {
+    "id": "ACC-84a7884191",
+    "action": "block_ioc",
+    "target": "198.51.100.210",
+    "tipo": "api",
+    "justificacion": "Bloquear IP de origen del acceso remoto no autorizado.",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "ticket",
+        "id": "TKT-20261012-011829"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.072390+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.072394+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en ticket TKT-20261012-011829"
+      }
+    ]
+  },
+  "ACC-6ab8a1f7b1": {
+    "id": "ACC-6ab8a1f7b1",
+    "action": "isolate_host",
+    "target": "WS-BCN-1770",
+    "tipo": "api",
+    "justificacion": "Aislar el puesto cliente donde se inició el compromiso y la comunicación C2.",
+    "impacto": "Pérdida de conectividad en el puesto de trabajo de la usuaria de compras. · Portátil de criticidad Media: se para «Puesto de trabajo» (Productividad)",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "puesto de trabajo",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.076394+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.076402+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-2e3cb99f8a": {
+    "id": "ACC-2e3cb99f8a",
+    "action": "isolate_host",
+    "target": "PRINT01",
+    "tipo": "api",
+    "justificacion": "Aislar el servidor comprometido donde se detuvo el agente EDR y se creó la cuenta maliciosa de Domain Admin.",
+    "impacto": "Indisponibilidad temporal de servidor de impresión. · Servidor de impresión de criticidad Baja",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      },
+      {
+        "rol": "responsable_soc",
+        "etiqueta": "Responsable SOC"
+      }
+    ],
+    "politica": "N2 + responsable del servicio: SIN RESPONSABLE en servicios_negocio.csv (decide el Responsable SOC)",
+    "motivo_politica": "servicio sin responsable en servicios_negocio.csv",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.077949+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.077954+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-e0e3fccccd": {
+    "id": "ACC-e0e3fccccd",
+    "action": "isolate_host",
+    "target": "FS01",
+    "tipo": "api",
+    "justificacion": "Aislar el servidor de archivos donde se intentó la eliminación de instantáneas de volumen para ransomware.",
+    "impacto": "Corte temporal de acceso a recursos compartidos de archivos. · Servidor de ficheros de criticidad Alta",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      },
+      {
+        "rol": "responsable_soc",
+        "etiqueta": "Responsable SOC"
+      }
+    ],
+    "politica": "N2 + responsable del servicio: SIN RESPONSABLE en servicios_negocio.csv (decide el Responsable SOC)",
+    "motivo_politica": "servicio sin responsable en servicios_negocio.csv",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.079388+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.079393+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-30072e5dbe": {
+    "id": "ACC-30072e5dbe",
+    "action": "disable_user",
+    "target": "svc_print_upd",
+    "tipo": "api",
+    "justificacion": "Inhabilitar la cuenta ilegítima con privilegios de Domain Admin creada por el atacante.",
+    "impacto": "Cuenta de servicio: puede parar un proceso de negocio (svc_print_upd)",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "acción disruptiva",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.080927+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.080933+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-9c509ec03f": {
+    "id": "ACC-9c509ec03f",
+    "action": "disable_user",
+    "target": "adm.aortega",
+    "tipo": "api",
+    "justificacion": "Inhabilitar la cuenta privilegia adm.aortega tras la extracción de credenciales de LSASS.",
+    "impacto": "Pérdida temporal de acceso administrativo de la usuaria Alba Ortega. · Alba Ortega (ADM) (Ingeniero Cloud) se queda sin acceso",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "acción disruptiva",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.082406+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.082410+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-2a1a4084b4": {
+    "id": "ACC-2a1a4084b4",
+    "action": "reset_password",
+    "target": "adm.aortega",
+    "tipo": "api",
+    "justificacion": "Forzar cambio de clave de la cuenta privileged comprometida.",
+    "impacto": "El usuario tendrá que cambiar la contraseña",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "acción disruptiva",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.082423+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.082424+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-e117d62066": {
+    "id": "ACC-e117d62066",
+    "action": "revoke_sessions",
+    "target": "adm.aortega",
+    "tipo": "api",
+    "justificacion": "Invalidar tokens y sesiones Kerberos activas de la cuenta adm.aortega.",
+    "impacto": "El usuario tendrá que volver a iniciar sesión en todas sus aplicaciones",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "acción disruptiva",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.082433+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.082435+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-329f9fddd5": {
+    "id": "ACC-329f9fddd5",
+    "action": "revoke_sessions",
+    "target": "marta.puig",
+    "tipo": "api",
+    "justificacion": "Invalidar sesiones activas de la usuaria afectada por phishing.",
+    "impacto": "Desconexión temporal de la usuaria marta.puig. · El usuario tendrá que volver a iniciar sesión en todas sus aplicaciones",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "acción disruptiva",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.082443+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.082444+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-6883912935": {
+    "id": "ACC-6883912935",
+    "action": "reset_password",
+    "target": "marta.puig",
+    "tipo": "api",
+    "justificacion": "Cambio preventivo de credenciales de marta.puig.",
+    "impacto": "El usuario tendrá que cambiar la contraseña",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "acción disruptiva",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.082451+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.082452+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-b3b825b2dd": {
+    "id": "ACC-b3b825b2dd",
+    "action": "block_ioc",
+    "target": "aplihartom.com",
+    "tipo": "api",
+    "justificacion": "Bloquear el dominio C2 en proxy, cortafuegos y DNS.",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.083729+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.083734+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-7f2a9b4fe4": {
+    "id": "ACC-7f2a9b4fe4",
+    "action": "block_ioc",
+    "target": "107.174.115.43",
+    "tipo": "api",
+    "justificacion": "Bloquear la IP de infraestructura C2 en el cortafuegos perimetral.",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.084928+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.084933+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-8d227bf250": {
+    "id": "ACC-8d227bf250",
+    "action": "block_ioc",
+    "target": "203.0.113.88",
+    "tipo": "api",
+    "justificacion": "Bloquear la IP de resolución C2 en la infraestructura de red.",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.086208+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.086212+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-f839c23302": {
+    "id": "ACC-f839c23302",
+    "action": "block_ioc",
+    "target": "70aa203e2e17260ab3f760a84404b9c9ace4397d7d0b8e4713534f40b1353c44",
+    "tipo": "api",
+    "justificacion": "Bloquear el hash de los payloads svchelper.exe/spoolhlp.exe en EDR.",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.087363+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.087369+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-dc9b42feff": {
+    "id": "ACC-dc9b42feff",
+    "action": "purge_email",
+    "target": "<20261009110402.4411@pedidos-hilaturas-alcoi.example>",
+    "tipo": "api",
+    "justificacion": "Purgar el mensaje de phishing y su adjunto malicioso de todos los buzones.",
+    "impacto": "Se elimina el correo de todos los buzones",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.087387+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.087390+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-2468ff0f29": {
+    "id": "ACC-2468ff0f29",
+    "action": "block_ioc",
+    "target": "0cfa0bdd1f21ae4d71ab3b0978339be3bd578b9c0c6bf3eeeffed4a0ca3dd697",
+    "tipo": "api",
+    "justificacion": "Indicador malicioso según sandbox",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.088587+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.088591+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-6185dfd5e5": {
+    "id": "ACC-6185dfd5e5",
+    "action": "block_ioc",
+    "target": "3634e8cc4ad82ba8985c6eb9cf5ce8d6fcdfa1931e6431826999b87dae978768",
+    "tipo": "api",
+    "justificacion": "Indicador malicioso según sandbox",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.089770+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.089774+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-3a3b447f32": {
+    "id": "ACC-3a3b447f32",
+    "action": "block_ioc",
+    "target": "6f395de68a4888c4f7ac579e3a8a844f4b1dd89db7b97274ca346af0ac67b466",
+    "tipo": "api",
+    "justificacion": "Indicador malicioso según sandbox",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261009-011790"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.090912+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.090916+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261009-011790"
+      }
+    ]
+  },
+  "ACC-29b0d1966e": {
+    "id": "ACC-29b0d1966e",
+    "action": "disable_access_key",
+    "target": "AKIATARVIA7XQ2DEPLY",
+    "tipo": "api",
+    "justificacion": "Inactivar inmediatamente la clave de acceso de AWS de svc_ecom_deploy comprometida en el runner.",
+    "impacto": "Interrupción temporal de los despliegues automáticos de e-commerce en CI/CD hasta reconfigurar la clave. · Dejan de funcionar las cargas que usan la clave (despliegues, integraciones)",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261015-011819"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "acción disruptiva",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.090930+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.090932+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261015-011819"
+      }
+    ]
+  },
+  "ACC-a21d9f02d4": {
+    "id": "ACC-a21d9f02d4",
+    "action": "disable_user",
+    "target": "backup-sync",
+    "tipo": "api",
+    "justificacion": "Deshabilitar/eliminar la cuenta de usuario IAM persistente backup-sync creada por el atacante.",
+    "impacto": "La cuenta no está en el directorio",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261015-011819"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      }
+    ],
+    "politica": "N2",
+    "motivo_politica": "acción disruptiva",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.092312+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.092317+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261015-011819"
+      }
+    ]
+  },
+  "ACC-6d62f84678": {
+    "id": "ACC-6d62f84678",
+    "action": "block_ioc",
+    "target": "2.57.121.25",
+    "tipo": "api",
+    "justificacion": "Bloquear la dirección IP del atacante en todos los perímetros.",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261015-011819"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.093489+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.093494+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261015-011819"
+      }
+    ]
+  },
+  "ACC-7c36d0e022": {
+    "id": "ACC-7c36d0e022",
+    "action": "block_ioc",
+    "target": "npm-telemetry-stats.example",
+    "tipo": "api",
+    "justificacion": "Bloquear el dominio utilizado para la exfiltración de credenciales desde el runner CI/CD.",
+    "impacto": "Ninguno esperado: se bloquea en proxy, correo y EDR",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261015-011819"
+      }
+    ],
+    "requisitos": [],
+    "politica": "la ejecuta el N1",
+    "motivo_politica": "indicador",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.094747+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.094751+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261015-011819"
+      }
+    ]
+  },
+  "ACC-95bdf77a9a": {
+    "id": "ACC-95bdf77a9a",
+    "action": "isolate_host",
+    "target": "CI-RUNNER01",
+    "tipo": "api",
+    "justificacion": "Aislar el runner de CI/CD para preservar evidencias y evitar mayor exfiltración de secretos.",
+    "impacto": "Pausa en la integración y despliegue continuo de la tienda online mientras se realiza el análisis forense. · Runner CI/CD de criticidad Alta: se para «Integración continua» (Despliegues de e-commerce)",
+    "origenes": [
+      {
+        "tipo": "informe",
+        "id": "INC-20261015-011819"
+      }
+    ],
+    "requisitos": [
+      {
+        "rol": "N2",
+        "etiqueta": "N2"
+      },
+      {
+        "rol": "responsable_servicio",
+        "servicio": "Integración continua",
+        "cargo": "Director de Tecnología",
+        "etiqueta": "Director de Tecnología (responsable de Integración continua)"
+      }
+    ],
+    "politica": "N2 + responsable del servicio: Director de Tecnología (Integración continua)",
+    "motivo_politica": "Runner CI/CD del servicio Integración continua",
+    "aprobaciones": [],
+    "estado": "pendiente",
+    "resultado": null,
+    "creada": "2026-11-08T02:02:37.096129+00:00",
+    "historial": [
+      {
+        "ts": "2026-11-08T02:02:37.096134+00:00",
+        "email": "agente",
+        "rol": "sistema",
+        "evento": "propuesta",
+        "detalle": "Propuesta en informe INC-20261015-011819"
+      }
+    ]
+  }
+}

@@ -5,9 +5,9 @@ Todo sintético: el directorio, la CMDB, el TIP y la API de contención se susti
 nada se ejecuta de verdad (la API real escribiría en containment_log.jsonl)."""
 import pytest
 
-from agente import acciones, almacen, politica, roles
+from agente import acciones, almacen, api, politica, roles
 
-from apoyo import DIRTEC, N1, N2, N2B, RSOC, soc  # noqa: F401  (soc es el fixture del entorno simulado)
+from apoyo import CISO, DIRTEC, N1, N2, N2B, RSOC, soc  # noqa: F401  (soc es el fixture del entorno simulado)
 
 
 def _sol(accion, objetivo):
@@ -16,13 +16,24 @@ def _sol(accion, objetivo):
 
 # --------------------------------------------------------------------------------------------- roles y política
 
-def test_roles_del_directorio(soc):
-    assert roles.identificar(N1)["roles"] == ["N1"]
-    assert roles.identificar(RSOC)["roles"] == ["responsable_soc"]
-    assert "responsable_servicio:Copias de seguridad" in roles.identificar(DIRTEC)["roles"]
-    assert "dpo" in roles.identificar("elena.mora@tarvia.example")["roles"]
-    assert roles.identificar("marta.puig@tarvia.example") is None      # empleada sin rol: sin acceso
-    assert roles.identificar("nadie@tarvia.example") is None
+def test_usuarios_del_soc(soc):
+    """La consola es del equipo del SOC (su base de datos), con un usuario de ejemplo por nivel."""
+    assert roles.autenticar("n1", "n1demo")["roles"] == ["N1"]
+    assert roles.autenticar("N2@SOC.example", "n2demo")["roles"] == ["N2"]          # usuario o email
+    assert roles.autenticar("responsable", "rsocdemo")["roles"] == ["responsable_soc"]
+    assert roles.autenticar("ciso", "cisodemo")["roles"] == ["ciso"]
+    assert roles.autenticar("n2", "N2DEMO") is None and roles.autenticar("nadie", "x") is None
+    assert roles.identificar(CISO)["cargo"] == "CISO"
+
+
+def test_la_empresa_no_entra_pero_sus_responsables_cuentan(soc):
+    """El directorio de Tarvia no da acceso; sí dice quién es responsable de cada servicio."""
+    assert roles.identificar(DIRTEC) is None
+    assert "responsable_servicio:Copias de seguridad" in roles.roles_empresa(api.usuario(DIRTEC))
+    assert "dpo" in roles.roles_empresa(api.usuario("elena.mora@tarvia.example"))
+    assert roles.roles_empresa(api.usuario("marta.puig@tarvia.example")) == set()
+    assert roles.responsable_de(DIRTEC, "Copias de seguridad")["upn"] == DIRTEC
+    assert roles.responsable_de("marta.puig@tarvia.example", "Copias de seguridad") is None
 
 
 @pytest.mark.parametrize("accion,objetivo,esperado", [
@@ -79,7 +90,7 @@ def test_n1_no_puede_lo_que_pide_n2(soc):
     with pytest.raises(acciones.PermisoDenegado):
         acciones.aprobar(_sol("block_ioc", "mega.nz")["id"], N1)
     with pytest.raises(acciones.PermisoDenegado):
-        acciones.aprobar(_sol("isolate_host", "WS-BCN-1770")["id"], "marta.puig@tarvia.example")
+        acciones.aprobar(_sol("isolate_host", "WS-BCN-1770")["id"], DIRTEC)      # la empresa no opera
 
 
 def test_aislar_un_servidor_cuatro_ojos(soc):
@@ -90,12 +101,32 @@ def test_aislar_un_servidor_cuatro_ojos(soc):
         acciones.aprobar(sid, N2)                                                  # la misma persona no repite
     with pytest.raises(acciones.PermisoDenegado):
         acciones.aprobar(sid, N2B)                                                 # otro N2 no es el responsable
-    s = acciones.aprobar(sid, DIRTEC, "asumo la parada de copias")
+    with pytest.raises(acciones.PermisoDenegado):
+        acciones.aprobar(sid, N1, "por teléfono", en_nombre_de=DIRTEC)            # el N1 no registra negocio
+    with pytest.raises(acciones.PermisoDenegado):
+        acciones.aprobar(sid, N2, "x", en_nombre_de="marta.puig@tarvia.example")  # no es la responsable
+    s = acciones.aprobar(sid, N2, "por teléfono a las 10:42", en_nombre_de=DIRTEC)
     assert s["estado"] == acciones.EJECUTADA
+    negocio = s["aprobaciones"][1]
+    assert (negocio["email"], negocio["registrado_por"]) == (DIRTEC, N2)
     firmantes = soc["aprobaciones"][0]["approver"]
-    assert "Pablo Coll" in firmantes and "Alejandro Benítez" in firmantes
+    assert "Analista N2 (demo)" in firmantes and "Alejandro Benítez" in firmantes
     assert soc["contenciones"][0] == {"action": "isolate_host", "target": "FS01", "token": "APR-1", "ticket": "TKT-1"}
-    assert [h["evento"] for h in s["historial"]] == ["propuesta", "aprobación", "aprobación", "ejecutada"]
+    assert [h["evento"] for h in s["historial"]] == ["propuesta", "aprobación", "aprobación de negocio registrada",
+                                                      "ejecutada"]
+
+
+def test_servidor_sin_responsable_lo_decide_el_responsable_soc(soc):
+    almacen_t = almacen.ticket("TKT-1")
+    almacen_t["ticket"]["recommended_actions"].append({"action": "isolate_host", "target": "SRV-HUERFANO",
+                                                       "requires_approval": True, "justification": "x"})
+    almacen.guardar_ticket(almacen_t)
+    acciones.sincronizar()
+    sid = _sol("isolate_host", "SRV-HUERFANO")["id"]
+    acciones.aprobar(sid, N2)
+    with pytest.raises(acciones.PermisoDenegado):
+        acciones.aprobar(sid, N2B)
+    assert acciones.aprobar(sid, RSOC)["estado"] == acciones.EJECUTADA
 
 
 def test_no_repite_lo_ya_ejecutado(soc):
@@ -135,5 +166,8 @@ def test_bandeja_por_rol(soc):
         return {(s["action"], s["target"]) for s in acciones.pendientes_de(roles.identificar(email))}
     assert ("isolate_host", "FS01") in ids(N2) and ("block_ioc", "evil.example") in ids(N1)
     assert ("isolate_host", "FS01") not in ids(N1)
-    assert ids(DIRTEC) == {("isolate_host", "FS01")}                             # solo lo de sus servicios
-    assert ids("elena.mora@tarvia.example") == set()                            # la DPO no aprueba contención
+    sid = _sol("isolate_host", "FS01")["id"]
+    acciones.aprobar(sid, N2)
+    n2 = roles.identificar(N2)
+    assert acciones.que_puede_hacer(acciones.obtener(sid), n2) == {"registrar_responsable", "rechazar"}
+    assert ("isolate_host", "FS01") in ids(CISO)

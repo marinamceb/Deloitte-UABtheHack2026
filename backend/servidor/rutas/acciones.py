@@ -29,9 +29,12 @@ def visible(sol: dict, persona: dict) -> bool:
 
 
 def vista(sol: dict, persona: dict) -> dict:
-    """La solicitud más lo que esta persona puede hacer (`puedo`) y las aprobaciones que faltan (`faltan`)."""
+    """La solicitud más lo que esta persona puede hacer (`puedo`), las aprobaciones que faltan (`faltan`) y, si falta
+    la de un responsable de servicio de la empresa, a quién hay que pedírsela (`negocio`)."""
+    i = acciones._requisito_negocio(sol)
     return {**sol, "puedo": sorted(acciones.que_puede_hacer(sol, persona)),
-            "faltan": [sol["requisitos"][i]["etiqueta"] for i in acciones._faltan(sol)]}
+            "faltan": [sol["requisitos"][j]["etiqueta"] for j in acciones._faltan(sol)],
+            "negocio": ({k: sol["requisitos"][i].get(k) for k in ("cargo", "servicio")} if i is not None else None)}
 
 
 @router.get("/pendientes")
@@ -70,6 +73,7 @@ def detalle(id_solicitud: str, persona: dict = Depends(persona_actual)):
 
 class Decision(BaseModel):
     comentario: str = ""
+    en_nombre_de: str = ""   # email de Tarvia: aprobación de un responsable de servicio registrada por un N2+
 
 
 def _decidir(operacion, id_solicitud: str, persona: dict, *args) -> dict:
@@ -85,7 +89,7 @@ def _decidir(operacion, id_solicitud: str, persona: dict, *args) -> dict:
 
 @router.post("/{id_solicitud}/aprobar")
 def aprobar(id_solicitud: str, datos: Decision, persona: dict = Depends(persona_actual)):
-    return _decidir(acciones.aprobar, id_solicitud, persona, datos.comentario)
+    return _decidir(acciones.aprobar, id_solicitud, persona, datos.comentario, datos.en_nombre_de.strip())
 
 
 @router.post("/{id_solicitud}/rechazar")

@@ -1,27 +1,30 @@
-"""[Nivel 4 · web] Login por email, logout y «quién soy»."""
+"""[Nivel 4 · web] Login del equipo del SOC (usuario o email + contraseña, base de datos propia), logout y «quién
+soy». El directorio de Tarvia (la empresa monitorizada) no da acceso a la consola."""
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from agente import roles
-from servidor.seguridad import persona_actual, registrar_acceso
+from servidor.seguridad import con_permisos, persona_actual, registrar_acceso
 
 router = APIRouter(prefix="/api", tags=["sesión"])
 
 
 class Login(BaseModel):
-    email: str
+    usuario: str    # nombre de usuario o email del SOC
+    password: str
 
 
 @router.post("/login")
 def login(datos: Login, request: Request):
-    persona = roles.identificar(datos.email)
-    if persona is None:
-        registrar_acceso("login_rechazado", datos.email, request, "no existe o no tiene rol")
-        raise HTTPException(403, "Ese email no existe en el directorio o no tiene acceso a la consola")
+    persona = roles.autenticar(datos.usuario, datos.password)
+    if persona is None:   # mismo mensaje si el usuario no existe o la contraseña es incorrecta
+        registrar_acceso("login_rechazado", datos.usuario, request, "credenciales incorrectas")
+        raise HTTPException(401, "Usuario o contraseña incorrectos")
     request.session.clear()
     request.session["email"] = persona["email"]
+    request.session["acceso_anterior"] = persona.get("ultimo_login")   # leído antes de actualizarlo
     registrar_acceso("login", persona["email"], request, ", ".join(persona["roles"]))
-    return persona
+    return {**con_permisos(persona), "acceso_anterior": persona.get("ultimo_login")}
 
 
 @router.post("/logout")
@@ -33,5 +36,5 @@ def logout(request: Request):
 
 
 @router.get("/yo")
-def yo(persona: dict = Depends(persona_actual)):
-    return persona
+def yo(request: Request, persona: dict = Depends(persona_actual)):
+    return {**con_permisos(persona), "acceso_anterior": request.session.get("acceso_anterior")}

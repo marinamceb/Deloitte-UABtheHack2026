@@ -2,6 +2,7 @@
 
 Nivel 1 · Triaje básico: entender, enriquecer, veredicto, severidad y recomendación (cerrar o escalar)
     triaje.py            orquesta el triaje de una alerta (integra también los niveles 2 y 4)
+    ingesta.py           alertas nuevas recibidas por el backend (la API no admite altas): cola, correlación, triaje
     cola.py              cola priorizada: severidad estimada sin LLM (matriz + inventario) y plazo del SLA
     motores.py           conexión con el LLM (Gemini/compatibles OpenAI o Claude)
     prompts.py           prompt de sistema (política + empresa) y contexto de la regla (catálogo + runbook)
@@ -37,9 +38,11 @@ Nivel 3 · Investigación: reconstruir la cadena de ataque (aunque dure días), 
 Nivel 4 · Respuesta: proponer contención y ejecutarla con aprobación humana
     acciones.py          solicitudes de contención: aprobaciones por rol (cuatro ojos), estados, ejecución en la API
                          simulada sin repetir, tareas manuales, historial; lo usan el CLI y la web
-    roles.py             rol de cada persona a partir de su ficha del directorio (login por email, sin contraseña)
+    usuarios_soc.py      usuarios de la consola: nuestro equipo del SOC (SQLite desde db/usuarios_soc.sql; demo)
+    roles.py             qué puede cada rol del SOC; responsables de servicio de la empresa según su directorio
+    avisos.py            avisos por rol: escalados y SLA (internos) y notificaciones a terceros (DPO 72 h...)
     contencion.py        interfaz de texto de acciones.py (--pendientes EMAIL, --aprobar --aprobador EMAIL)
-    ../servidor/         consola web (FastAPI): login por email, sesión firmada, rol comprobado en cada ruta
+    ../servidor/         consola web (FastAPI): login del SOC, sesión firmada, rol comprobado en cada ruta
     politica.py          quién aprueba cada acción (requisitos), nada sobre OT, uso dual, IOC sin bloquear  (aprobar_acciones,
                          bloqueos_pendientes)
 

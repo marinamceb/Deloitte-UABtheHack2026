@@ -1,6 +1,8 @@
-"""[Nivel 4 · respuesta] Punto de decisión humana en la consola: el agente propone, la persona (identificada por su
-email del directorio) aprueba o rechaza según su rol y acciones.py ejecuta cuando están todas las aprobaciones.
+"""[Nivel 4 · respuesta] Punto de decisión humana en la terminal: el agente propone, la persona del SOC (usuario y
+contraseña de la consola) aprueba o rechaza según su rol y acciones.py ejecuta cuando están todas las aprobaciones.
 La web usa el mismo módulo acciones.py; esto es solo la interfaz de texto."""
+from getpass import getpass
+
 from . import acciones, roles
 
 SIMBOLO = {"pendiente": "…", "aprobada": "✓", "ejecutada": "✔", "fallida": "✗", "rechazada": "⊘", "prohibida": "⛔",
@@ -20,12 +22,11 @@ def describir(sol: dict) -> str:
             f"     aprobaciones: {reqs}")
 
 
-def revisar(persona_email: str, origen: str | None = None) -> None:
+def revisar(usuario: str, origen: str | None = None) -> None:
     """Recorre lo que esta persona puede decidir (de un ticket/informe concreto o todo) y pregunta una a una."""
-    persona = roles.identificar(persona_email)
+    persona = roles.autenticar(usuario, getpass(f"  Contraseña de {usuario}: "))
     if persona is None:
-        print(f"  ✗ {persona_email} no existe en el directorio o no tiene un rol con acceso "
-              "(p. ej. neus.benitez@tarvia.example es N1 y pablo.coll@tarvia.example es N2).")
+        print("  ✗ Usuario o contraseña incorrectos (usuarios de la demo en backend/db/usuarios_soc.sql).")
         return
     acciones.sincronizar()
     lista = [s for s in acciones.pendientes_de(persona) if not origen or origen in {o["id"] for o in s["origenes"]}]
@@ -34,13 +35,18 @@ def revisar(persona_email: str, origen: str | None = None) -> None:
     for sol in lista:
         print("   " + describir(sol).replace("\n", "\n   "))
         ops = acciones.que_puede_hacer(sol, persona)
-        opciones = {"aprobar": "[a]probar", "marcar_hecha": "[h]echa", "reintentar": "re[i]ntentar",
-                    "rechazar": "[r]echazar"}
+        opciones = {"aprobar": "[a]probar", "registrar_responsable": "registrar aprobación de [n]egocio",
+                    "marcar_hecha": "[h]echa", "reintentar": "re[i]ntentar", "rechazar": "[r]echazar"}
         texto = " / ".join(v for k, v in opciones.items() if k in ops) + " / [s]altar"
         r = input(f"     ¿Qué haces? {texto}: ").strip().lower()[:1]
         try:
             if r == "a" and "aprobar" in ops:
                 sol = acciones.aprobar(sol["id"], persona["email"], input("     Comentario (opcional): ").strip())
+            elif r == "n" and "registrar_responsable" in ops:
+                req = sol["requisitos"][acciones._requisito_negocio(sol)]
+                quien = input(f"     Email de Tarvia de {req['cargo']} ({req['servicio']}) que lo aprobó: ").strip()
+                como = input("     Cómo y cuándo lo aprobó (p. ej. «por teléfono, 10:42»): ").strip()
+                sol = acciones.aprobar(sol["id"], persona["email"], como, en_nombre_de=quien)
             elif r == "h" and "marcar_hecha" in ops:
                 sol = acciones.marcar_hecha(sol["id"], persona["email"], input("     Nota: ").strip())
             elif r == "i" and "reintentar" in ops:
@@ -59,6 +65,6 @@ def revisar(persona_email: str, origen: str | None = None) -> None:
                  f" (faltan: {', '.join(sol['requisitos'][i]['etiqueta'] for i in acciones._faltan(sol))})"))
 
 
-def revisar_acciones(resultado: dict, persona_email: str) -> None:
+def revisar_acciones(resultado: dict, usuario: str) -> None:
     """Tras triar (agent.py --aprobar): decide sobre las acciones propuestas en ese ticket."""
-    revisar(persona_email, resultado["ticket"]["ticket_id"])
+    revisar(usuario, resultado["ticket"]["ticket_id"])

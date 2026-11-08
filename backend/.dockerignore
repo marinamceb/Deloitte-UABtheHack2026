@@ -1,5 +1,9 @@
+.venv/
+salidas/
 __pycache__/
-**/__pycache__/
+**/.venv/
+salidas/
+__pycache__/
 .pytest_cache/
 tests/evaluacion/resultado.json
 probar_llm.py

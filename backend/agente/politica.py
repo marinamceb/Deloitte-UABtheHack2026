@@ -133,9 +133,11 @@ def requisitos(accion: str, objetivo: str) -> dict:
             motivo = f"servicio de uso dual o legítimo según el TIP ({tip.get('tags', '')})"
             return {"permitida": True, "motivo": motivo,
                     "aprobaciones": [n2], "texto": "N2"}
-        return {"permitida": True, "motivo": "indicador", "aprobaciones": [], "texto": ""}
+        return {"permitida": True, "aprobaciones": [], "texto": "",
+                "motivo": "bloquear un indicador del ataque lo puede ejecutar el N1 (no es un servicio de uso dual)"}
     if accion == "purge_email":
-        return {"permitida": True, "motivo": "", "aprobaciones": [], "texto": ""}
+        return {"permitida": True, "aprobaciones": [], "texto": "",
+                "motivo": "purgar un correo malicioso de los buzones lo puede ejecutar el N1"}
     # fuera de la API (borrar una regla de buzón, quitar un MFA, eliminar un usuario IAM...): la política no las
     # lista; se tratan como disruptivas (N2), que es lo conservador
     return {"permitida": True, "motivo": "tarea manual fuera de la API", "aprobaciones": [n2], "texto": "N2"}

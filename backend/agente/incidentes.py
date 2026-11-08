@@ -24,6 +24,7 @@ from functools import lru_cache
 
 from . import almacen, api
 from . import herramientas as h
+from . import ingesta
 from .comun import de_alerta, es_interna, utc
 from .plantillas import FIRMAS
 
@@ -43,13 +44,23 @@ _INCIDENTES: dict[str, list[str]] | None = None  # alert_id → alert_ids del in
 
 
 def todas_las_alertas() -> dict[str, dict]:
+    """Las alertas de la API simulada más las recibidas por el backend (agente/ingesta.py)."""
     global _ALERTAS
     if _ALERTAS is None:
         datos, error, _ = h._get("/alerts", {"status": "new", "limit": 100000})
         if datos is None:
             raise RuntimeError(f"No se pudieron cargar las alertas: {error}")
         _ALERTAS = {a["alert_id"]: a for a in datos["items"]}
+        _ALERTAS.update({a["alert_id"]: a for a in ingesta.leer()})
     return _ALERTAS
+
+
+def reiniciar() -> None:
+    """Olvida las alertas y la correlación calculadas (p. ej. al recibir alertas nuevas)."""
+    global _ALERTAS, _INCIDENTES
+    _ALERTAS = _INCIDENTES = None
+    for f in (_cubiertas, _ids_senal, cuentas_sospechosas, _es_fuerte):
+        f.cache_clear()
 
 
 def _patron(a: dict) -> str | None:

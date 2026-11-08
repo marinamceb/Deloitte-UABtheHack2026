@@ -45,6 +45,8 @@ CONCENTRADOR = 3000      # eventos en todo el dataset a partir de los que una en
 RARO = 2                 # equipos/cuentas distintos que usan un indicador para considerarlo raro
 OPERACION_RARA = 40      # apariciones en 4 semanas de un tipo de evento para considerarlo poco frecuente (< 1,5/día)
 MAX_CRONOLOGIA = 80
+DIAS_RUTINA = 3          # días distintos en la ventana a partir de los que algo es rutina de un equipo o cuenta
+LEJOS_H = 48             # un pivote débil a más de estas horas de cualquier alerta del incidente pasa a contexto
 DOMINIO_PROPIO = "tarvia.example"
 
 # Campo que identifica el tipo de evento en cada fuente (para la frecuencia de tipos)
@@ -282,8 +284,28 @@ def historial_origenes(cred: str) -> dict[str, dict]:
     return h
 
 
-def senales(e: dict, ctx: Contexto, entidades: set[str]) -> list[tuple[str, str]]:
-    """Motivos por los que un evento es notable para la cadena ([] si no lo es)."""
+def habitos(evs: list[dict]) -> dict[str, set]:
+    """Rutina de una entidad en la ventana: para cada indicador externo/hash/paquete y cada tipo de operación, en
+    qué días aparece entre sus eventos. Lo que se repite en DIAS_RUTINA días o más es habitual para ella (el runner
+    de CI descarga de storage.googleapis.com cada pocos días; el paquete falso, una sola vez)."""
+    dias: dict[str, set] = collections.defaultdict(set)
+    for e in evs:
+        dia = (e.get("timestamp") or "")[:10]
+        for x in entidades_de_evento(e):
+            if externa(x) or x.startswith(("hash:", "pkg:")):
+                dias[x].add(dia)
+        if t := tipo_de(e):
+            dias[f"op:{e['_fuente']}/{t}"].add(dia)
+    return dias
+
+
+def _rutina(clave: str, rutina: dict | None) -> bool:
+    return bool(rutina) and len(rutina.get(clave, ())) >= DIAS_RUTINA
+
+
+def senales(e: dict, ctx: Contexto, entidades: set[str], rutina: dict | None = None) -> list[tuple[str, str]]:
+    """Motivos por los que un evento es notable para la cadena ([] si no lo es). `rutina`: hábitos de la entidad
+    desde la que se ha llegado al evento (lo que hace a menudo no es raro para ella aunque lo sea en la empresa)."""
     s = []
     # las alertas de ruido de fondo (patrones repetidos) no hacen notable un evento
     alertas = [a for a in ctx.alerta_de_evento.get(e["event_id"], [])
@@ -302,13 +324,14 @@ def senales(e: dict, ctx: Contexto, entidades: set[str]) -> list[tuple[str, str]
              if (externa(x) or x.split(":")[0] in ("hash", "pkg"))
              and not (x.startswith("ip:") and (acceso or con_dominio))
              and not (x.startswith("dom:") and _consulta(x).endswith(CDN))
+             and not _rutina(x, rutina)
              and dispersion(x) <= RARO]
     if raros:
         s.append(("raro", "poco común en la empresa: " + ", ".join(sorted(_consulta(x) for x in raros)[:3])))
     tipo = tipo_de(e)
     if tipo and (e["_fuente"], tipo) != ("edr_events", "process_start"):
         n = frecuencia_tipos(e["_fuente"])[tipo]
-        if n <= OPERACION_RARA or tipo == "detection":
+        if tipo == "detection" or (n <= OPERACION_RARA and not _rutina(f"op:{e['_fuente']}/{tipo}", rutina)):
             s.append(("operacion", f"{e['_fuente']}/{tipo} ({n} en 4 semanas)"))
     if (o := _origen(e)) and o[0] and o[1] and not es_interna(o[1]):
         cred, ip = o
@@ -322,6 +345,36 @@ def senales(e: dict, ctx: Contexto, entidades: set[str]) -> list[tuple[str, str]
 
 
 NUCLEO, PIVOTE, CONTEXTO = 1, 2, 3
+
+
+def lejos(e: dict, tiempos_alertas: list) -> bool:
+    try:
+        t = utc(e["timestamp"])
+    except (KeyError, ValueError):
+        return False
+    return min(abs((t - x).total_seconds()) for x in tiempos_alertas) > LEJOS_H * 3600
+
+
+def pivotes_especiales(e: dict, ents: set[str]) -> dict[str, str]:
+    """Entidades que un evento del núcleo señala como parte del ataque aunque sean comunes, con el porqué:
+    - el mismo correo (message_id): los demás destinatarios del phishing (alcance de la campaña);
+    - una cuenta creada por el atacante (alta en AD 4720, CreateUser en la nube): qué hizo después;
+    - la sesión del atacante (session_id de un inicio de sesión con un indicador del ataque)."""
+    out = {}
+    f = e["_fuente"]
+    if f == "email" and e.get("message_id"):
+        out[f"msg:{e['message_id']}"] = f"evento {e['event_id']} (mismo correo: otros destinatarios)"
+    creada = None
+    if f == "ad_events" and str(e.get("event_code")) == "4720":
+        creada = normalizar("user", e.get("target", ""))
+    elif f == "cloudtrail" and e.get("eventName") == "CreateUser":
+        creada = normalizar("user", (e.get("requestParameters") or {}).get("userName", ""))
+    if creada:
+        out[creada] = f"evento {e['event_id']} (cuenta creada por el atacante)"
+    for x in ents:
+        if x.startswith("session:"):
+            out[x] = f"evento {e['event_id']} (sesión del atacante)"
+    return out
 
 
 def relevancia(s: list[tuple[str, str]]) -> int:
@@ -355,13 +408,16 @@ def investigar(alert_ids: list[str]) -> dict:
     notables: dict[str, dict] = {}
 
     # los eventos que citan las propias alertas entran siempre (aunque sus entidades sean concentradores)
+    especiales: dict[str, str] = {}
     for a in alertas:
         for ev_id in a.get("related_events", []):
             if ev_id not in notables and (e := indice.evento(ev_id)):
                 ents_e = entidades_de_evento(e)
                 notables[ev_id] = {"evento": e, "senales": senales(e, ctx, ents_e), "entidades": ents_e,
                                    "por": {"alerta"}, "nivel": NUCLEO}
+                especiales.update({k: v for k, v in pivotes_especiales(e, ents_e).items() if k not in entidades})
 
+    tiempos_alertas = [utc(a["created_at"]) for a in alertas]
     frontera = sorted(semillas)
     for salto in range(MAX_SALTOS + 1):
         nuevas: dict[str, str] = {}
@@ -371,6 +427,7 @@ def investigar(alert_ids: list[str]) -> dict:
                 continue
             evs = indice.eventos_de(_consulta(ent), desde, hasta) or []
             entidades[ent]["eventos"] = len(evs)
+            rutina = habitos(evs) if ent.split(":")[0] in ("host", "user", "key") else None
             for e in evs:
                 ents_e = entidades_de_evento(e)
                 if ent.split(":")[0] in ("user", "host") and ent not in ents_e:
@@ -378,10 +435,12 @@ def investigar(alert_ids: list[str]) -> dict:
                 if e["event_id"] in notables:
                     notables[e["event_id"]]["por"].add(ent)
                     continue
-                s = senales(e, ctx, ents_e)
+                s = senales(e, ctx, ents_e, rutina)
                 if not s:
                     continue
                 nivel = relevancia(s)
+                if nivel == PIVOTE and not any(c == "raro" for c, _ in s) and lejos(e, tiempos_alertas):
+                    nivel = CONTEXTO   # pivote débil (origen nuevo, operación) lejos de las alertas: contexto
                 notables[e["event_id"]] = {"evento": e, "senales": s, "entidades": ents_e, "por": {ent},
                                            "nivel": nivel}
                 if nivel == CONTEXTO:
@@ -394,6 +453,8 @@ def investigar(alert_ids: list[str]) -> dict:
                 for x in ents_e:
                     if x not in entidades and x not in nuevas and x.split(":")[0] not in ("msg",):
                         nuevas[x] = ent
+                if nivel == NUCLEO:
+                    especiales.update({k: v for k, v in pivotes_especiales(e, ents_e).items() if k not in entidades})
             # pivote: origen habitual de una credencial usada desde un origen nuevo
             if ent.startswith("user:") and any(c == "origen_nuevo" for n in notables.values() if ent in n["por"]
                                                for c, _ in n["senales"]):
@@ -404,8 +465,12 @@ def investigar(alert_ids: list[str]) -> dict:
                         nuevas[f"host:{h}"] = f"{ent} (origen habitual: {hist[ip]['n']} usos desde {ip})"
         if salto == MAX_SALTOS:
             break
-        # siguiente salto: primero lo más raro (menos eventos), sin concentradores
-        candidatas = sorted((x for x in nuevas if eventos_globales(x) <= CONCENTRADOR), key=eventos_globales)
+        # siguiente salto: primero los pivotes especiales (mismo correo, cuenta creada, sesión del atacante) y luego
+        # lo más raro (menos eventos), sin concentradores
+        nuevas.update(especiales)
+        especiales.clear()
+        candidatas = sorted((x for x in nuevas if eventos_globales(x) <= CONCENTRADOR),
+                            key=lambda x: (" (" not in nuevas[x], eventos_globales(x)))
         concentradores |= {x for x in nuevas if eventos_globales(x) > CONCENTRADOR}
         frontera = candidatas[:MAX_ENTIDADES_SALTO]
         for x in frontera:
@@ -559,8 +624,11 @@ def cronologia(notables: dict[str, dict], alertas: list[dict]) -> list[dict]:
 def acceso_inicial(crono: list[dict]) -> dict:
     """Candidatos al acceso inicial (el LLM elige y argumenta): el primer evento del núcleo con un indicador externo
     y, antes de él, los eventos pivote con un artefacto poco común (hash, paquete o dominio): p. ej. el build que
-    robó la clave que el atacante usa después. Paciente cero: equipos y cuentas internos del primer candidato."""
+    robó la clave que el atacante usa después. Además, el primer evento del núcleo aunque no tenga nada externo: en
+    una amenaza interna (una empleada que se lleva el CRM) el ataque empieza con un acceso legítimo de su cuenta.
+    Paciente cero: equipos y cuentas internos del primer candidato."""
     candidatos, primero = [], None
+    primero_nucleo = next((x for x in crono if x["event_id"] and x["nivel"] == "núcleo"), None)
     for x in crono:
         if not x["event_id"]:
             continue
@@ -572,6 +640,9 @@ def acceso_inicial(crono: list[dict]) -> dict:
         if raros and any(e.startswith(("hash:", "pkg:", "dom:")) and _consulta(e) in raros[0] for e in externos):
             candidatos.append(x)
     candidatos = candidatos[-3:] + ([primero] if primero else [])
+    if primero_nucleo and primero_nucleo not in candidatos and (
+            not primero or primero_nucleo["timestamp"] < primero["timestamp"]):
+        candidatos.insert(0, primero_nucleo)   # interno: el primer paso del núcleo, antes que cualquier indicador
 
     def resumen(x):
         return {"event_id": x["event_id"], "timestamp": x["timestamp"], "description": x["description"],

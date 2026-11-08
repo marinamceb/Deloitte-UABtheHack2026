@@ -1,0 +1,30 @@
+{
+  "nota": "Cadenas de ataque verificadas a mano en los logs. deben_estar: eventos que la cronología tiene que incluir (también agrupados como repetición); no_deben_estar: ruido legítimo comprobado (builds normales, teletrabajo, cambios autorizados); acceso_inicial: eventos válidos como acceso inicial; huecos: fuentes con eventos del ataque que ninguna alerta cubre.",
+  "casos": [
+    {"nombre": "Fuga de copias del CRM por la cadena de suministro", "semilla": "ALR-20261016-011821",
+     "acceso_inicial": ["CI-0000602", "CI-0000603"],
+     "deben_estar": ["CI-0000602", "CI-0000603", "CT-0005451", "CT-0005454", "CT-0005455", "CT-0005456", "CT-0005457"],
+     "no_deben_estar": ["CI-0000159", "CI-0000210", "CI-0000227", "CI-0000250", "CT-0000726", "CT-0001271"],
+     "entidades": ["host:CI-RUNNER01"], "relacionado_con_alerta": "ALR-20261013-011901",
+     "max_cronologia": 15},
+    {"nombre": "Ransomware: adjunto, LSASS, movimiento lateral, persistencia", "semilla": "ALR-20261009-011790",
+     "acceso_inicial": ["EML-0062206"],
+     "deben_estar": ["EML-0062206", "EDR-0123400", "EDR-0123401", "EDR-0123412", "EDR-0123413", "EDR-0123414",
+                     "EDR-0123435", "FW-0026543", "EDR-0123415", "ADE-0000570", "ADE-0000571", "EDR-0123436"],
+     "no_deben_estar": ["EDR-0123429", "EDR-0123430", "EDR-0123431", "EDR-0123432", "VPN-0001297", "VPN-0003370"],
+     "huecos": ["edr_events", "firewall"], "max_cronologia": 50},
+    {"nombre": "BEC: AiTM, regla de buzón y cambio de IBAN", "semilla": "ALR-20261007-011786",
+     "acceso_inicial": ["EML-0062204"],
+     "deben_estar": ["EML-0062204", "CLK-0017753", "SIGN-0083865", "SIGN-0083866", "AUD-0000787", "AUD-0000788",
+                     "EML-0062205"],
+     "no_deben_estar": [], "huecos": ["idp_audit"], "max_cronologia": 12},
+    {"nombre": "Fatiga MFA: nóminas descargadas y MFA nuevo", "semilla": "ALR-20261010-011827",
+     "acceso_inicial": ["SIGN-0084029", "SIGN-0084055"],
+     "deben_estar": ["SIGN-0084029", "SIGN-0084055", "AUD-0000828", "AUD-0000829"],
+     "no_deben_estar": [], "max_cronologia": 8},
+    {"nombre": "Fuga de datos de una empleada tras su salida", "semilla": "ALR-20261014-011817",
+     "acceso_inicial": ["SQL-0004201"],
+     "deben_estar": ["SQL-0004201", "SQL-0004203", "EDR-0123422", "PRX-0212602", "DLP-0001118", "EML-0062207"],
+     "no_deben_estar": [], "iocs_prohibidos": ["dom:mega.nz", "dom:wetransfer.com"], "max_cronologia": 14}
+  ]
+}

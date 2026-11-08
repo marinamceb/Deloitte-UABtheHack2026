@@ -5,8 +5,8 @@ Ejemplos:
   python agent.py --muestra 5                    # tría las 5 primeras de la muestra de desarrollo
   python agent.py --cola 10                      # tría las 10 más prioritarias de la cola (severidad estimada y SLA)
   python agent.py --ver-cola 20                  # muestra la cola priorizada sin llamar al modelo
-  python agent.py --muestra 3 --aprobar --aprobador pablo.coll@tarvia.example   # y decide la contención propuesta
-  python agent.py --pendientes pablo.coll@tarvia.example   # nivel 4: acciones que esa persona puede aprobar
+  python agent.py --muestra 3 --aprobar --aprobador n2   # y decide la contención propuesta (pide contraseña)
+  python agent.py --pendientes n2                  # nivel 4: acciones que ese usuario del SOC puede decidir
   python agent.py --listar-modelos               # modelos disponibles en el proveedor configurado
   python agent.py --listar-incidentes            # alertas agrupadas en incidentes candidatos (sin LLM)
   python agent.py --construir-indice             # descarga los logs por la API a salidas/indice_logs.sqlite
@@ -24,7 +24,7 @@ import time
 
 from agente import almacen, cola
 from agente.config import DATASET
-from agente.herramientas import _get
+from agente.herramientas import alerta_por_id
 from agente.motores import CuotaAgotada
 from agente.triaje import triar
 
@@ -33,7 +33,7 @@ ETIQUETA_TIPO = {"regla_interna": "regla interna", "cambio": "cambio", "rrhh": "
 
 
 def _alerta_api(aid: str) -> dict:
-    alerta, error, _ = _get(f"/alerts/{aid}")
+    alerta, error, _ = alerta_por_id(aid)
     if alerta is None:
         sys.exit(f"La alerta {aid} no existe ({error}). Revisa el ID (formato ALR-AAAAMMDD-NNNNNN, "
                  f"p. ej. ALR-20261005-000301) o usa --muestra N.")
@@ -51,20 +51,14 @@ def cargar_alertas(args) -> list[dict]:
     if args.muestra:
         alertas += [_alerta_api(aid) for aid in ids_muestra()[args.desde:args.desde + args.muestra]]
     if args.cola:
-        alertas += [x["alerta"] for x in cola_priorizada()[args.desde:args.desde + args.cola]]
+        alertas += [x["alerta"] for x in cola.actual()[args.desde:args.desde + args.cola]]
     elif args.priorizar and len(alertas) > 1:
         alertas = [x["alerta"] for x in cola.priorizar(alertas)]
     return alertas
 
 
-def cola_priorizada() -> list[dict]:
-    """[Nivel 1] Todas las alertas nuevas ordenadas por prioridad, sin las que ya están en un ticket."""
-    from agente import incidentes
-    return cola.priorizar(list(incidentes.todas_las_alertas().values()), almacen.alertas_en_tickets())
-
-
 def ver_cola(n: int) -> None:
-    entradas = cola_priorizada()
+    entradas = cola.actual()
     print(f"Cola priorizada: {len(entradas)} puestos (incidentes y alertas sueltas) sin ticket. Los {n} primeros:\n")
     print(f"{'#':>3} {'sev. estimada':13} {'vence (SLA)':17} {'alerta a triar':20} {'n':>3} {'regla':11} "
           "activo más crítico")
@@ -93,15 +87,21 @@ def indice_cli(fuentes: str | None) -> None:
         print(f"  {f:13} {x['eventos']:>7}  {x['primero'][:16]} → {x['ultimo'][:16]}")
 
 
-def investigar_cli(ids: list[str], usar_llm: bool, effort: str) -> int | None:
+def investigar_cli(ids: list[str], usar_llm: bool, effort: str, forzar: bool = False,
+                   con_herramientas: bool = False) -> int | None:
     """[Nivel 3] Reconstruye la cadena de ataque y genera el informe de incidente."""
     from agente import informe
     try:
-        r = informe.generar(ids, usar_llm=usar_llm, effort=effort)
+        r = informe.generar(ids, usar_llm=usar_llm, effort=effort, forzar=forzar, con_herramientas=con_herramientas)
     except CuotaAgotada as e:
         print(f"✗ {e}\n  Usa --sin-llm para obtener al menos los hechos reunidos por código.")
         return 1
     inf, h = r["informe"], r["hechos"]
+    if r.get("reutilizado"):
+        print(f"≡ Mismos hechos que el informe del {r['generado_en'][:16]}: se reutiliza sin llamar al LLM "
+              "(--forzar para redactarlo de nuevo).")
+    if r.get("no_guardado"):
+        print(f"ℹ {r['no_guardado']}.")
     est = h["estadisticas"]
     print(f"{inf['incident_id']} · {inf['title']}")
     print(f"  {len(inf['alert_ids'])} alertas · {est['entidades']} entidades rastreadas en {est['consultas_indice']} "
@@ -144,7 +144,8 @@ def main():
     p.add_argument("--pausa", type=float, default=0, help="segundos de espera entre alertas (límites del plan gratuito)")
     p.add_argument("--sin-plantillas", action="store_true",
                    help="triar cada alerta con el modelo aunque repita el patrón de un ticket anterior")
-    p.add_argument("--forzar", action="store_true", help="triar aunque la alerta ya esté incluida en otro ticket")
+    p.add_argument("--forzar", action="store_true",
+                   help="triar aunque la alerta ya esté en otro ticket; con --investigar, redactar aunque haya caché")
     p.add_argument("--listar-incidentes", action="store_true",
                    help="muestra los incidentes candidatos (alertas agrupadas por entidades) y sale")
     p.add_argument("--listar-modelos", action="store_true", help="lista los modelos del proveedor y sale")
@@ -154,10 +155,12 @@ def main():
     p.add_argument("--investigar", nargs="+", metavar="ID",
                    help="nivel 3: investiga el incidente de una alerta (ALR-…) o ticket (TKT-…) y redacta el informe")
     p.add_argument("--sin-llm", action="store_true", help="con --investigar: informe solo con los hechos del código")
-    p.add_argument("--aprobador", metavar="EMAIL",
-                   help="con --aprobar: email del directorio de quien decide (su rol fija qué puede aprobar)")
-    p.add_argument("--pendientes", metavar="EMAIL",
-                   help="nivel 4: revisa las acciones de contención pendientes de esa persona y sale")
+    p.add_argument("--con-herramientas", action="store_true",
+                   help="con --investigar: deja que el LLM use herramientas (más lento y más tokens; antes por defecto)")
+    p.add_argument("--aprobador", metavar="USUARIO",
+                   help="con --aprobar: usuario del SOC que decide (pide su contraseña; su rol fija qué puede aprobar)")
+    p.add_argument("--pendientes", metavar="USUARIO",
+                   help="nivel 4: revisa las acciones de contención pendientes de ese usuario del SOC y sale")
     args = p.parse_args()
 
     if args.listar_modelos:
@@ -174,10 +177,10 @@ def main():
         return
 
     if args.aprobar and not args.aprobador:
-        p.error("--aprobar necesita --aprobador EMAIL (p. ej. pablo.coll@tarvia.example, N2)")
+        p.error("--aprobar necesita --aprobador USUARIO del SOC (p. ej. n2; ver backend/db/usuarios_soc.sql)")
 
     if args.investigar:
-        return investigar_cli(args.investigar, not args.sin_llm, args.effort)
+        return investigar_cli(args.investigar, not args.sin_llm, args.effort, args.forzar, args.con_herramientas)
 
     if args.ver_cola:
         ver_cola(args.ver_cola)
@@ -228,6 +231,10 @@ def main():
                   f"{c['regla']} — {c['sujeto']}: {c['estado']}")
         for r in t.get("relacionado_con", []):
             print(f"    ↔ relacionado con {r['ticket_id']} (comparte {', '.join(r['entidades'][:2])})")
+        from agente import informe
+        if incidente := informe.preparar(res):   # nivel 3: hechos de la cadena listos para el N2 (sin LLM)
+            print(f"    🧭 escalado: hechos de la cadena preparados en {incidente} "
+                  f"(--investigar {t['ticket_id']} para el informe)")
         for aj in t.get("ajustes_politica", []):
             print(f"    ⚖ política: {aj}")
         print(f"    {len(res['traza'])} consultas · {t['triage_seconds']} s · "

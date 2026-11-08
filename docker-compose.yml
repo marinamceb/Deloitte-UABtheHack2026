@@ -1,45 +1,61 @@
-# Consola del SOC de Tarvia: API simulada (original) + backend (agente y API web) + frontend (nginx).
-#   docker compose up --build                       → http://localhost:8080  (API simulada: http://localhost:8000/docs)
-#   Puertos publicados: WEB_PORT (8080) y SOC_API_PORT (8000), p. ej. si ya hay una API simulada local en el 8000.
+# Consola del SOC de Tarvia: PostgreSQL (usuarios del SOC) + backend (agente y API web) + frontend (nginx).
+# La API simulada del reto NO va en Docker: se ejecuta en la máquina física con uvicorn. Para que el backend
+# (contenedor) la alcance, debe escuchar fuera de 127.0.0.1:
+#   cd DTT-UAB-The-Hack-main/06_herramientas && uvicorn mock_soc_api:app --host 0.0.0.0 --port 8000
+#
+#   docker compose up -d --build                    → http://localhost:8080
 #   docker compose run --rm backend python agent.py --construir-indice      (una vez: índice de logs del nivel 3)
 #   docker compose run --rm backend python agent.py --ver-cola 10            (cualquier orden del CLI)
-#   docker compose run --rm backend python -m pytest -q                      (tests)
-# Secretos (GEMINI_API_KEY, WEB_SECRETO...) en .env, que nunca entra en las imágenes.
+#   docker compose exec backend python -m pytest -q                          (tests)
+#   docker compose down            (los datos de PostgreSQL se conservan; «down -v» los borra y se vuelven a sembrar)
+# Puertos publicados: WEB_PORT (8080) y PG_PORT (5432) solo en 127.0.0.1; el backend (8001) en todas las interfaces
+# (BACKEND_HOST), para que otros sistemas le envíen alertas: ver .env.ejemplo (INGESTA_TOKEN).
+# Secretos en .env (GEMINI_API_KEY, WEB_SECRETO, POSTGRES_PASSWORD...), que nunca entra en las imágenes.
 name: tarvia-soc
 
 services:
-  soc-api:
-    build:
-      context: .
-      dockerfile: docker/soc-api.Dockerfile
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: soc
+      POSTGRES_USER: soc
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-socdemo}
     volumes:
-      # DTT-UAB-The-Hack-main no se modifica: todo en solo lectura salvo el registro de contención (volumen propio)
-      - ./DTT-UAB-The-Hack-main/01_contexto:/dataset/01_contexto:ro
-      - ./DTT-UAB-The-Hack-main/02_inventario:/dataset/02_inventario:ro
-      - ./DTT-UAB-The-Hack-main/03_alertas:/dataset/03_alertas:ro
-      - ./DTT-UAB-The-Hack-main/04_logs:/dataset/04_logs:ro
-      - ./DTT-UAB-The-Hack-main/05_inteligencia:/dataset/05_inteligencia:ro
-      - registro-contencion:/dataset/06_herramientas
+      - pgdata:/var/lib/postgresql/data
+      # tabla users + un usuario de ejemplo por rol (solo se ejecuta al crear la base; el backend lo repite, idempotente)
+      - ./backend/db/usuarios_soc.sql:/docker-entrypoint-initdb.d/01_usuarios_soc.sql:ro
     ports:
-      - "127.0.0.1:${SOC_API_PORT:-8000}:8000"   # solo para consultar /docs; el backend la usa por la red interna
+      - "127.0.0.1:${PG_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U soc -d soc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     restart: unless-stopped
 
   backend:
     build: ./backend
-    user: "${UID:-1000}:${GID:-1000}"   # el de quien ejecuta, para poder escribir en ./salidas
+    user: "${UID:-1000}:${GID:-1000}"   # el de quien ejecuta, para poder escribir en ./backend/salidas
     env_file:
       - path: .env
         required: false
+    ports:
+      # público para la demo (otros sistemas envían alertas a /api/ingesta/alertas con X-API-Key = INGESTA_TOKEN).
+      # Para dejarlo solo en este equipo: BACKEND_HOST=127.0.0.1
+      - "${BACKEND_HOST:-0.0.0.0}:${BACKEND_PORT:-8001}:8001"
     environment:
-      SOC_API_URL: http://soc-api:8000
+      # la API simulada corre en la máquina física; host.docker.internal apunta a ella (extra_hosts)
+      SOC_API_URL: ${SOC_API_URL_DOCKER:-http://host.docker.internal:8000}
+      DATABASE_URL: postgresql://soc:${POSTGRES_PASSWORD:-socdemo}@db:5432/soc
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./DTT-UAB-The-Hack-main:/dataset:ro
-      - ./salidas:/datos/salidas
+      - ./backend/salidas:/datos/salidas
     depends_on:
-      soc-api:
+      db:
         condition: service_healthy
     restart: unless-stopped
-    # sin «ports»: solo es accesible a través del frontend (nginx)
 
   frontend:
     build: ./frontend
@@ -51,4 +67,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  registro-contencion:
+  pgdata:

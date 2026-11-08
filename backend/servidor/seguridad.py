@@ -1,11 +1,11 @@
 """[Nivel 4 · web] Sesión, rol y defensas comunes a todas las rutas. Decide el servidor; el navegador solo muestra.
 
-- Login solo con email: usuarios.csv no tiene contraseñas. El email se resuelve con /users (roles.identificar) y solo
-  entran personas con un rol (SOC, responsables de servicio, DPO, Tesorería, Operaciones). Es suplantable a propósito
-  de la demo: en producción iría detrás del SSO corporativo. Cada login, logout y rechazo queda en
-  salidas/accesos.jsonl.
-- La sesión es una cookie firmada (WEB_SECRETO) que guarda solo el email. El rol se vuelve a calcular en cada petición
-  desde el directorio (`persona_actual`): nunca viaja desde el navegador.
+- Solo entra nuestro equipo del SOC: usuario o email + contraseña contra su propia base de datos
+  (agente/usuarios_soc.py, db/usuarios_soc.sql). Las contraseñas de ejemplo están en claro: solo para la demo (en
+  producción, hash con sal o SSO). El directorio de Tarvia, la empresa monitorizada, no da acceso. Cada login,
+  logout y rechazo queda en salidas/accesos.jsonl.
+- La sesión es una cookie firmada (WEB_SECRETO) que guarda solo el email. Rol y estado (activo) se vuelven a leer
+  de la base de datos en cada petición (`persona_actual`): nunca viajan desde el navegador.
 - CSRF: cookie SameSite=Strict y los POST de /api solo admiten JSON (un formulario de otra web no puede enviarlo).
 """
 import os
@@ -48,6 +48,25 @@ def exigir_soc(persona: dict) -> None:
 
 def ve_todo(persona: dict) -> bool:
     return bool(set(persona["roles"]) & SOC_LECTURA)
+
+
+def permisos(persona: dict) -> dict:
+    """Qué puede hacer cada rol, para que la web muestre solo lo que corresponde (el servidor lo vuelve a comprobar
+    en cada ruta: esto no da permisos, solo los describe)."""
+    r = set(persona["roles"])
+    return {
+        "ver": bool(r & SOC_LECTURA),                               # cola, tickets, incidentes, registro
+        "decidir": roles.es_soc(persona),                           # ejecutar lo del N1, marcar tareas hechas
+        "aprobar_n2": bool(r & roles.PUEDE["N2"]),                  # acciones disruptivas
+        "registrar_negocio": roles.registra_en_nombre(persona),     # aprobación de un responsable de Tarvia
+        "avisos": bool(r & {"N2", "responsable_soc", "ciso"}),     # escalados, SLA y notificaciones a terceros
+        "supervisar": bool(r & {"responsable_soc", "ciso"}),       # visión de conjunto
+        "solo_lectura": not roles.es_soc(persona),
+    }
+
+
+def con_permisos(persona: dict) -> dict:
+    return {**persona, "permisos": permisos(persona)}
 
 
 def registrar_acceso(evento: str, email: str, request: Request, detalle: str = "") -> None:

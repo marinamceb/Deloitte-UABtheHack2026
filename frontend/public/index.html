@@ -3,13 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tarvia SOC · aprobaciones</title>
+  <meta name="color-scheme" content="light dark">
+  <title>Tarvia SOC · Consola</title>
+  <link rel="icon" href="img/escudo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/app.js"></script>
 </head>
 <body>
-  <!-- Marcador: la interfaz (login, bandeja «Mis pendientes», detalle) es el punto 4 del plan del nivel 4. -->
-  <main>
-    <h1>Tarvia SOC · aprobaciones</h1>
-    <p>Backend en marcha. Documentación de la API: <a href="/api/docs">/api/docs</a></p>
-  </main>
+  <div id="app" aria-live="polite">
+    <p class="cargando">Cargando…</p>
+  </div>
+  <div id="avisos" class="avisos" role="status" aria-live="polite"></div>
+  <noscript>La consola necesita JavaScript.</noscript>
 </body>
 </html>

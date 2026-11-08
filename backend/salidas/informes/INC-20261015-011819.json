@@ -1,0 +1,5259 @@
+{
+  "informe": {
+    "incident_id": "INC-20261015-011819",
+    "title": "Compromiso de AWS IAM por Dependency Confusion en CI/CD y exfiltración de copias CRM",
+    "alert_ids": [
+      "ALR-20261015-011819",
+      "ALR-20261015-011820",
+      "ALR-20261016-011821"
+    ],
+    "related_incidents": [
+      "ALR-20261012-003200"
+    ],
+    "patient_zero": "Servidor runner CI-RUNNER01 y credenciales de la cuenta IAM svc_ecom_deploy.",
+    "initial_access": "Ataque de sustitución de dependencias (Dependency Confusion) durante el build #1842 en CI-RUNNER01 (CI-0000602), en el que npm ci instaló el paquete malicioso 'tarvia-checkout-utils' v9.9.1 desde el registro público npmjs.org en lugar del paquete privado interno '@tarvia/checkout-utils'. Un script de postinstall (CI-0000603) leyó las variables de entorno con las credenciales AWS de 'svc_ecom_deploy' y las envió al dominio externo 'npm-telemetry-stats.example'.",
+    "timeline": [
+      {
+        "timestamp": "2026-10-13T12:21:00.000Z",
+        "event_id": "CI-0000601",
+        "description": "Inicio del build ecom-frontend#1842 en CI-RUNNER01 tras un commit de actualización de dependencias.",
+        "mitre": "T1195.002"
+      },
+      {
+        "timestamp": "2026-10-13T12:22:00.000Z",
+        "event_id": "CI-0000602",
+        "description": "npm ci descarga el paquete malicioso público tarvia-checkout-utils v9.9.1 por confusión de dependencias.",
+        "mitre": "T1195.002"
+      },
+      {
+        "timestamp": "2026-10-13T12:22:30.000Z",
+        "event_id": "CI-0000603",
+        "description": "El script de postinstall de tarvia-checkout-utils lee las variables de entorno (AWS, NPM_TOKEN, SENTRY) y las exfiltra a npm-telemetry-stats.example.",
+        "mitre": "T1195.002"
+      },
+      {
+        "timestamp": "2026-10-15T00:12:00.000Z",
+        "event_id": "CT-0005451",
+        "description": "El atacante utiliza las credenciales robadas de svc_ecom_deploy desde la IP 2.57.121.25 para autenticarse (GetCallerIdentity).",
+        "mitre": "T1078.004"
+      },
+      {
+        "timestamp": "2026-10-15T00:12:35.000Z",
+        "event_id": "CT-0005452",
+        "description": "El atacante enumera los buckets de S3 en la cuenta tarvia-prod desde la IP 2.57.121.25.",
+        "mitre": "T1078.004"
+      },
+      {
+        "timestamp": "2026-10-15T00:13:10.000Z",
+        "event_id": "CT-0005453",
+        "description": "El atacante enumera los usuarios de IAM existentes desde la IP 2.57.121.25.",
+        "mitre": "T1078.004"
+      },
+      {
+        "timestamp": "2026-10-15T00:13:45.000Z",
+        "event_id": "CT-0005454",
+        "description": "El atacante crea un nuevo usuario de IAM persistente llamado backup-sync desde la IP 2.57.121.25.",
+        "mitre": "T1098.001"
+      },
+      {
+        "timestamp": "2026-10-15T00:14:20.000Z",
+        "event_id": "CT-0005455",
+        "description": "El atacante asigna la política de permisosAdministratorAccess al usuario backup-sync.",
+        "mitre": "T1098.001"
+      },
+      {
+        "timestamp": "2026-10-15T00:14:55.000Z",
+        "event_id": "CT-0005456",
+        "description": "El atacante genera una clave de acceso (AccessKey) para el usuario backup-sync.",
+        "mitre": "T1098.001"
+      },
+      {
+        "timestamp": "2026-10-16T00:40:00.000Z",
+        "event_id": "CT-0005457",
+        "description": "El atacante descarga de forma masiva (1.400 objetos, ~112 GB) los archivos de backup SQL del CRM en tarvia-backups-prod usando la cuenta backup-sync desde la IP 2.57.121.25.",
+        "mitre": "T1530"
+      }
+    ],
+    "scope": {
+      "users": [
+        "svc_ecom_deploy",
+        "backup-sync"
+      ],
+      "hosts": [
+        "CI-RUNNER01"
+      ],
+      "data": "Exfiltración masiva de aproximadamente 112 GB (1.400 archivos de backup SQL) correspondientes a copias de seguridad de la base de datos CRM_PROD desde el bucket tarvia-backups-prod.",
+      "business_impact": "Filtración confirmada de la base de datos de clientes CRM (1,3 millones de usuarios registrados). Implica obligaciones legales de notificación a autoridades de protección de datos (AEPD/CNPD) en 72h. Sin afectación directa a la disponibilidad de la tienda online ni al centro logístico."
+    },
+    "root_cause": "Falta de aislamiento de nombres de paquetes (scope) en la configuración de npm de CI/CD, lo que permitió a la herramienta descargar un paquete malicioso no restringido desde el registro público npmjs.org. Además, el entorno de CI/CD utilizaba credenciales IAM estáticas de larga duración con elevados privilegios en lugar de roles temporales, sin restricciones de IP en AWS.",
+    "containment_plan": [
+      {
+        "action": "disable_access_key",
+        "target": "AKIATARVIA7XQ2DEPLY",
+        "approver": "N2",
+        "business_impact": "Interrupción temporal de los despliegues automáticos de e-commerce en CI/CD hasta reconfigurar la clave.",
+        "justification": "Inactivar inmediatamente la clave de acceso de AWS de svc_ecom_deploy comprometida en el runner."
+      },
+      {
+        "action": "disable_user",
+        "target": "backup-sync",
+        "approver": "N2",
+        "business_impact": "ninguno",
+        "justification": "Deshabilitar/eliminar la cuenta de usuario IAM persistente backup-sync creada por el atacante."
+      },
+      {
+        "action": "block_ioc",
+        "target": "2.57.121.25",
+        "approver": "—",
+        "business_impact": "ninguno",
+        "justification": "Bloquear la dirección IP del atacante en todos los perímetros."
+      },
+      {
+        "action": "block_ioc",
+        "target": "npm-telemetry-stats.example",
+        "approver": "—",
+        "business_impact": "ninguno",
+        "justification": "Bloquear el dominio utilizado para la exfiltración de credenciales desde el runner CI/CD."
+      },
+      {
+        "action": "isolate_host",
+        "target": "CI-RUNNER01",
+        "approver": "N2 + responsable del servicio: Director de Tecnología (Integración continua)",
+        "business_impact": "Pausa en la integración y despliegue continuo de la tienda online mientras se realiza el análisis forense.",
+        "justification": "Aislar el runner de CI/CD para preservar evidencias y evitar mayor exfiltración de secretos."
+      }
+    ],
+    "eradication_and_recovery": [
+      "Eliminar el usuario IAM persistente backup-sync y revocar de forma permanente sus credenciales de acceso.",
+      "Rotar de forma inmediata todas las credenciales exfiltradas durante la ejecución del postinstall (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, NPM_TOKEN, SENTRY_DSN).",
+      "Corregir la configuración del archivo .npmrc en el repositorio ecom-frontend y en el runner para forzar el uso del registro interno en el ámbito @tarvia/ y bloquear paquetes no con ámbito desde el registro público.",
+      "Reemplazar las credenciales estáticas de AWS en CI-RUNNER01 por roles temporales asumiendo IAM mediante OIDC.",
+      "Reconstruir el runner CI-RUNNER01 desde una imagen limpia antes de reincorporarlo al pipeline de despliegue."
+    ],
+    "notifications": [
+      "Notificar a la AEPD (España) y CNPD (Portugal) en un plazo máximo de 72 horas debido al acceso y exfiltración de copias de seguridad con datos personales de 1,3M de clientes registrados (RGPD).",
+      "Notificar inmediatamente a la CISO (Alba Rovira) y al Responsable del SOC.",
+      "Notificar al Delegado de Protección de Datos (DPO) para la evaluación del impacto y comunicación a los interesados.",
+      "Notificar al equipo de DevOps e Infraestructura para la corrección de registros de paquetes e inventario de secretos.",
+      "Responsable SOC y CISO (severidad crítica, apartado 3)"
+    ],
+    "detection_gaps": [
+      "Crear regla de alerta en SIEM para la creación de usuarios IAM con políticas AdministratorAccess adjuntas sin un ticket de cambio asociado.",
+      "Añadir alerta en SIEM/EDR para ejecuciones de npm postinstall que realicen peticiones de red salientes o accedan a variables de entorno confidenciales.",
+      "Implementar una política SCP/IAM que obligue al uso de condiciones IP (aws:SourceIp) para claves de servicio de CI/CD, impidiendo su uso desde IPs externas no autorizadas."
+    ],
+    "confidence": 0.95,
+    "open_questions": [
+      "¿Se han utilizado las credenciales secundarias exfiltradas (NPM_TOKEN, SENTRY_DSN) para alterar otros paquetes o enviar datos no autorizados a plataformas externas?",
+      "¿Se ha publicado el paquete público 'tarvia-checkout-utils' como un ataque dirigido deliberado o como parte de un rastreo masivo de confusión de dependencias?"
+    ],
+    "descartados": [
+      {
+        "event_id": "CI-0000159",
+        "motivo": "Descarga legítima de binarios de puppeteer desde Google Cloud Storage durante la ejecución del build ecom-frontend#1708."
+      },
+      {
+        "event_id": "CI-0000210",
+        "motivo": "Descarga legítima de binarios de la librería sharp desde GitHub en el build ecom-frontend#1225."
+      },
+      {
+        "event_id": "CI-0000227",
+        "motivo": "Descarga legítima de binarios de puppeteer en el build ecom-frontend#1782."
+      },
+      {
+        "event_id": "CI-0000250",
+        "motivo": "Descarga legítima de binarios de puppeteer en el build ecom-frontend#1163."
+      }
+    ],
+    "ajustes_politica": [
+      "Añadida notificación obligatoria: Responsable SOC y CISO (severidad crítica, apartado 3)",
+      "isolate_host CI-RUNNER01: requiere aprobación de N2 + responsable del servicio: Director de Tecnología (Integración continua)"
+    ]
+  },
+  "hechos": {
+    "alert_ids": [
+      "ALR-20261015-011819",
+      "ALR-20261015-011820",
+      "ALR-20261016-011821"
+    ],
+    "ventana": {
+      "desde": "2026-10-08T00:14:28Z",
+      "hasta": "2026-10-19T00:51:59Z"
+    },
+    "entidades": {
+      "key:AKIATARVIA7XQ2DEPLY": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 517,
+        "notables": 0
+      },
+      "user:backup-sync": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 1403,
+        "notables": 0
+      },
+      "ip:2.57.121.25": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 1406,
+        "notables": 1406
+      },
+      "user:svc_ecom_deploy": {
+        "salto": 0,
+        "via": "alerta",
+        "eventos": 517,
+        "notables": 0
+      },
+      "host:CI-RUNNER01": {
+        "salto": 1,
+        "via": "user:svc_ecom_deploy (origen habitual: 1286 usos desde 172.16.10.21)",
+        "eventos": 181,
+        "notables": 7
+      },
+      "key:AKIATARVIABKPSYNC01": {
+        "salto": 1,
+        "via": "ip:2.57.121.25",
+        "eventos": 1400,
+        "notables": 0
+      },
+      "hash:f412c70fef24e226c48b62c885087042fb88ddae0df4f4d5386f4b48156a676c": {
+        "salto": 2,
+        "via": "host:CI-RUNNER01",
+        "eventos": 1,
+        "notables": 0
+      },
+      "dom:npm-telemetry-stats.example": {
+        "salto": 2,
+        "via": "host:CI-RUNNER01",
+        "eventos": 1,
+        "notables": 0
+      },
+      "pkg:tarvia-checkout-utils": {
+        "salto": 2,
+        "via": "host:CI-RUNNER01",
+        "eventos": 2,
+        "notables": 0
+      },
+      "dom:storage.googleapis.com": {
+        "salto": 2,
+        "via": "host:CI-RUNNER01",
+        "eventos": 3,
+        "notables": 0
+      }
+    },
+    "concentradores": [
+      "dom:github.com"
+    ],
+    "iocs": [
+      "ip:2.57.121.25"
+    ],
+    "cronologia": [
+      {
+        "timestamp": "2026-10-12T16:14:40.312Z",
+        "event_id": "CI-0000159",
+        "source": "cicd_builds",
+        "nivel": "pivote",
+        "description": "ecom-frontend#1708 en CI-RUNNER01 · postinstall:puppeteer · ok {\"stdout\": \"binary downloaded\", \"env_read\": [\"PATH\", \"HOME\"], \"network\": \"GET https://storage.googleapis.com/... (binario de plataforma)\"}",
+        "mitre": "T1195.002",
+        "senales": [
+          "alerta: citado por ALR-20261012-003200 (alerta de fuera del incidente)",
+          "raro: poco común en la empresa: storage.googleapis.com",
+          "operacion: cicd_builds/postinstall (11 en 4 semanas)"
+        ],
+        "entidades": [
+          "dom:storage.googleapis.com",
+          "host:CI-RUNNER01"
+        ]
+      },
+      {
+        "timestamp": "2026-10-13T12:21:00.000Z",
+        "event_id": "CI-0000601",
+        "source": "cicd_builds",
+        "nivel": "pivote",
+        "description": "ecom-frontend#1842 en CI-RUNNER01 · checkout · ok {\"commit\": \"7f1c2ab\", \"author\": \"dependabot\", \"message\": \"chore(deps): bump checkout utils\"}",
+        "mitre": "T1195.002",
+        "senales": [
+          "alerta: citado por ALR-20261013-011901 (alerta de fuera del incidente)",
+          "operacion: cicd_builds/checkout (1 en 4 semanas)"
+        ],
+        "entidades": [
+          "host:CI-RUNNER01"
+        ]
+      },
+      {
+        "timestamp": "2026-10-13T12:22:00.000Z",
+        "event_id": "CI-0000602",
+        "source": "cicd_builds",
+        "nivel": "pivote",
+        "description": "ecom-frontend#1842 en CI-RUNNER01 · npm ci · ok {\"installed\": 1384, \"new_packages\": [{\"name\": \"tarvia-checkout-utils\", \"version\": \"9.9.1\", \"registry\": \"registry.npmjs.org (público)\", \"expected\": \"@tarvia/checkout-utils 2.3.0 (registro interno)\", \"sha256\": \"f412c70fef2",
+        "mitre": "T1195.002",
+        "senales": [
+          "alerta: citado por ALR-20261013-011901 (alerta de fuera del incidente)",
+          "raro: poco común en la empresa: f412c70fef24e226c48b62c885087042fb88ddae0df4f4d5386f4b48156a676c, tarvia-checkout-utils",
+          "operacion: cicd_builds/npm ci+paquetes (1 en 4 semanas)"
+        ],
+        "entidades": [
+          "hash:f412c70fef24e226c48b62c885087042fb88ddae0df4f4d5386f4b48156a676c",
+          "host:CI-RUNNER01",
+          "pkg:tarvia-checkout-utils"
+        ]
+      },
+      {
+        "timestamp": "2026-10-13T12:22:30.000Z",
+        "event_id": "CI-0000603",
+        "source": "cicd_builds",
+        "nivel": "pivote",
+        "description": "ecom-frontend#1842 en CI-RUNNER01 · postinstall:tarvia-checkout-utils · ok {\"stdout\": \"telemetry ok\", \"env_read\": [\"AWS_ACCESS_KEY_ID\", \"AWS_SECRET_ACCESS_KEY\", \"NPM_TOKEN\", \"SENTRY_DSN\"], \"network\": \"POST https://npm-telemetry-stats.example/collect (2,1 KB)\"}",
+        "mitre": "T1195.002",
+        "senales": [
+          "alerta: citado por ALR-20261013-011901 (alerta de fuera del incidente)",
+          "raro: poco común en la empresa: npm-telemetry-stats.example",
+          "operacion: cicd_builds/postinstall (11 en 4 semanas)"
+        ],
+        "entidades": [
+          "dom:npm-telemetry-stats.example",
+          "host:CI-RUNNER01"
+        ]
+      },
+      {
+        "timestamp": "2026-10-14T10:26:54.228Z",
+        "event_id": "CI-0000210",
+        "source": "cicd_builds",
+        "nivel": "pivote",
+        "description": "ecom-frontend#1225 en CI-RUNNER01 · postinstall:sharp · ok {\"stdout\": \"binary downloaded\", \"env_read\": [\"PATH\", \"HOME\"], \"network\": \"GET https://github.com/... (binario de plataforma)\"}",
+        "mitre": "T1195.002",
+        "senales": [
+          "alerta: citado por ALR-20261014-004080 (alerta de fuera del incidente)",
+          "operacion: cicd_builds/postinstall (11 en 4 semanas)"
+        ],
+        "entidades": [
+          "dom:github.com",
+          "host:CI-RUNNER01"
+        ]
+      },
+      {
+        "timestamp": "2026-10-15T00:12:00.000Z",
+        "event_id": "CT-0005451",
+        "source": "cloudtrail",
+        "nivel": "núcleo",
+        "description": "svc_ecom_deploy · GetCallerIdentity desde 2.57.121.25 {}",
+        "mitre": "T1078.004",
+        "senales": [
+          "alerta: citado por ALR-20261015-011819",
+          "ioc: indicador del ataque: 2.57.121.25",
+          "operacion: cloudtrail/GetCallerIdentity (1 en 4 semanas)",
+          "origen_nuevo: svc_ecom_deploy usada por primera vez desde 2.57.121.25  (habitual: 172.16.10.21, 1286 usos)"
+        ],
+        "entidades": [
+          "ip:2.57.121.25",
+          "key:AKIATARVIA7XQ2DEPLY",
+          "user:svc_ecom_deploy"
+        ]
+      },
+      {
+        "timestamp": "2026-10-15T00:12:35.000Z",
+        "event_id": "CT-0005452",
+        "source": "cloudtrail",
+        "nivel": "núcleo",
+        "description": "svc_ecom_deploy · ListBuckets desde 2.57.121.25 {}",
+        "mitre": "T1078.004",
+        "senales": [
+          "alerta: citado por ALR-20261015-011819",
+          "ioc: indicador del ataque: 2.57.121.25",
+          "operacion: cloudtrail/ListBuckets (1 en 4 semanas)"
+        ],
+        "entidades": [
+          "ip:2.57.121.25",
+          "key:AKIATARVIA7XQ2DEPLY",
+          "user:svc_ecom_deploy"
+        ]
+      },
+      {
+        "timestamp": "2026-10-15T00:13:10.000Z",
+        "event_id": "CT-0005453",
+        "source": "cloudtrail",
+        "nivel": "núcleo",
+        "description": "svc_ecom_deploy · ListUsers desde 2.57.121.25 {}",
+        "mitre": "T1078.004",
+        "senales": [
+          "alerta: citado por ALR-20261015-011819",
+          "ioc: indicador del ataque: 2.57.121.25"
+        ],
+        "entidades": [
+          "ip:2.57.121.25",
+          "key:AKIATARVIA7XQ2DEPLY",
+          "user:svc_ecom_deploy"
+        ]
+      },
+      {
+        "timestamp": "2026-10-15T00:13:45.000Z",
+        "event_id": "CT-0005454",
+        "source": "cloudtrail",
+        "nivel": "núcleo",
+        "description": "svc_ecom_deploy · CreateUser desde 2.57.121.25 {\"userName\": \"backup-sync\"}",
+        "mitre": "T1098.001",
+        "senales": [
+          "alerta: citado por ALR-20261015-011820",
+          "ioc: indicador del ataque: 2.57.121.25",
+          "operacion: cloudtrail/CreateUser (1 en 4 semanas)"
+        ],
+        "entidades": [
+          "ip:2.57.121.25",
+          "key:AKIATARVIA7XQ2DEPLY",
+          "user:backup-sync",
+          "user:svc_ecom_deploy"
+        ]
+      },
+      {
+        "timestamp": "2026-10-15T00:14:20.000Z",
+        "event_id": "CT-0005455",
+        "source": "cloudtrail",
+        "nivel": "núcleo",
+        "description": "svc_ecom_deploy · AttachUserPolicy desde 2.57.121.25 {\"userName\": \"backup-sync\", \"policyArn\": \"arn:aws:iam::aws:policy/AdministratorAccess\"}",
+        "mitre": "T1098.001",
+        "senales": [
+          "alerta: citado por ALR-20261015-011820",
+          "ioc: indicador del ataque: 2.57.121.25",
+          "operacion: cloudtrail/AttachUserPolicy (1 en 4 semanas)"
+        ],
+        "entidades": [
+          "ip:2.57.121.25",
+          "key:AKIATARVIA7XQ2DEPLY",
+          "user:backup-sync",
+          "user:svc_ecom_deploy"
+        ]
+      },
+      {
+        "timestamp": "2026-10-15T00:14:55.000Z",
+        "event_id": "CT-0005456",
+        "source": "cloudtrail",
+        "nivel": "núcleo",
+        "description": "svc_ecom_deploy · CreateAccessKey desde 2.57.121.25 {\"userName\": \"backup-sync\"}",
+        "mitre": "T1098.001",
+        "senales": [
+          "alerta: citado por ALR-20261015-011820",
+          "ioc: indicador del ataque: 2.57.121.25",
+          "operacion: cloudtrail/CreateAccessKey (1 en 4 semanas)"
+        ],
+        "entidades": [
+          "ip:2.57.121.25",
+          "key:AKIATARVIA7XQ2DEPLY",
+          "user:backup-sync",
+          "user:svc_ecom_deploy"
+        ]
+      },
+      {
+        "timestamp": "2026-10-15T06:37:19.548Z",
+        "event_id": "CI-0000227",
+        "source": "cicd_builds",
+        "nivel": "pivote",
+        "description": "ecom-frontend#1782 en CI-RUNNER01 · postinstall:puppeteer · ok {\"stdout\": \"binary downloaded\", \"env_read\": [\"PATH\", \"HOME\"], \"network\": \"GET https://storage.googleapis.com/... (binario de plataforma)\"}",
+        "mitre": "T1195.002",
+        "senales": [
+          "alerta: citado por ALR-20261015-004512 (alerta de fuera del incidente)",
+          "raro: poco común en la empresa: storage.googleapis.com",
+          "operacion: cicd_builds/postinstall (11 en 4 semanas)"
+        ],
+        "entidades": [
+          "dom:storage.googleapis.com",
+          "host:CI-RUNNER01"
+        ]
+      },
+      {
+        "timestamp": "2026-10-16T00:40:00.000Z",
+        "event_id": "CT-0005457",
+        "source": "cloudtrail",
+        "nivel": "núcleo",
+        "description": "backup-sync · GetObject desde 2.57.121.25 {\"bucketName\": \"tarvia-backups-prod\", \"key\": \"sql/CRM_PROD/2026-10-04/part-00000.bak\"}  (×1400 hasta 2026-10-16T00:49)",
+        "mitre": "T1530",
+        "senales": [
+          "alerta: citado por ALR-20261016-011821",
+          "ioc: indicador del ataque: 2.57.121.25"
+        ],
+        "entidades": [
+          "ip:2.57.121.25",
+          "key:AKIATARVIABKPSYNC01",
+          "user:backup-sync"
+        ],
+        "repeticiones": 1400,
+        "hasta": "2026-10-16T00:49:19.600Z",
+        "event_ids": [
+          "CT-0005457",
+          "CT-0005458",
+          "CT-0005459",
+          "CT-0005460",
+          "CT-0005461"
+        ]
+      },
+      {
+        "timestamp": "2026-10-16T10:16:19.129Z",
+        "event_id": "CI-0000250",
+        "source": "cicd_builds",
+        "nivel": "pivote",
+        "description": "ecom-frontend#1163 en CI-RUNNER01 · postinstall:puppeteer · ok {\"stdout\": \"binary downloaded\", \"env_read\": [\"PATH\", \"HOME\"], \"network\": \"GET https://storage.googleapis.com/... (binario de plataforma)\"}",
+        "mitre": "T1195.002",
+        "senales": [
+          "alerta: citado por ALR-20261016-004966 (alerta de fuera del incidente)",
+          "raro: poco común en la empresa: storage.googleapis.com",
+          "operacion: cicd_builds/postinstall (11 en 4 semanas)"
+        ],
+        "entidades": [
+          "dom:storage.googleapis.com",
+          "host:CI-RUNNER01"
+        ]
+      }
+    ],
+    "eventos_notables": 1413,
+    "contexto_descartado": {
+      "eventos": 20,
+      "tipos": [
+        [
+          "cloudtrail/PutBucketPolicy",
+          20
+        ]
+      ]
+    },
+    "acceso_inicial_candidatos": [
+      {
+        "event_id": "CI-0000159",
+        "timestamp": "2026-10-12T16:14:40.312Z",
+        "description": "ecom-frontend#1708 en CI-RUNNER01 · postinstall:puppeteer · ok {\"stdout\": \"binary downloaded\", \"env_read\": [\"PATH\", \"HOME\"], \"network\": \"GET https://storage.googleapis.com/... (binario de plataforma)\"}",
+        "nivel": "pivote"
+      },
+      {
+        "event_id": "CI-0000602",
+        "timestamp": "2026-10-13T12:22:00.000Z",
+        "description": "ecom-frontend#1842 en CI-RUNNER01 · npm ci · ok {\"installed\": 1384, \"new_packages\": [{\"name\": \"tarvia-checkout-utils\", \"version\": \"9.9.1\", \"registry\": \"registry.npmjs.org (público)\", \"expected\": \"@tarvia/checkout-utils 2.3.0 (registro interno)\", \"sha256\": \"f412c70fef2",
+        "nivel": "pivote"
+      },
+      {
+        "event_id": "CI-0000603",
+        "timestamp": "2026-10-13T12:22:30.000Z",
+        "description": "ecom-frontend#1842 en CI-RUNNER01 · postinstall:tarvia-checkout-utils · ok {\"stdout\": \"telemetry ok\", \"env_read\": [\"AWS_ACCESS_KEY_ID\", \"AWS_SECRET_ACCESS_KEY\", \"NPM_TOKEN\", \"SENTRY_DSN\"], \"network\": \"POST https://npm-telemetry-stats.example/collect (2,1 KB)\"}",
+        "nivel": "pivote"
+      },
+      {
+        "event_id": "CT-0005451",
+        "timestamp": "2026-10-15T00:12:00.000Z",
+        "description": "svc_ecom_deploy · GetCallerIdentity desde 2.57.121.25 {}",
+        "nivel": "núcleo"
+      }
+    ],
+    "paciente_cero_candidato": [
+      "CI-RUNNER01"
+    ],
+    "alcance": {
+      "hosts": [
+        "CI-RUNNER01"
+      ],
+      "users": [
+        "backup-sync",
+        "svc_ecom_deploy"
+      ],
+      "servicios": [
+        "Copias de seguridad",
+        "Integración continua"
+      ],
+      "bytes_salida_eventos_notables": 0,
+      "filas_sql": 0,
+      "objetos_cloud_leidos": {
+        "tarvia-backups-prod": 1400
+      },
+      "criticidad": {
+        "CI-RUNNER01": "Alta"
+      }
+    },
+    "relacionados": [
+      {
+        "incidente": "ALR-20261012-003200",
+        "alertas": [
+          "ALR-20261012-003200",
+          "ALR-20261013-011901",
+          "ALR-20261014-004080",
+          "ALR-20261015-004512",
+          "ALR-20261016-004966"
+        ],
+        "eventos": [
+          "CI-0000159",
+          "CI-0000210",
+          "CI-0000227",
+          "CI-0000250",
+          "CI-0000601"
+        ]
+      }
+    ],
+    "huecos": [],
+    "estadisticas": {
+      "segundos": 0.5,
+      "consultas_indice": 17,
+      "entidades": 10,
+      "eventos_notables": 1413
+    }
+  },
+  "traza": [
+    {
+      "tool": "cambios",
+      "args": {
+        "ruta": "/changes"
+      },
+      "origen": "agente",
+      "ms": 2,
+      "chars": 3442,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.12.9"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 252,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.12.13"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.11.130"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.11.200"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.11.61"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/carmen.sala@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 441,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/judith.lozano@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/mireia.costa@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 444,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/marina.castro@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 447,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/olga.vila@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 424,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/neus.parra@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 438,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/sara.ferrer@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 430,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/adria.aguilar@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 436,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/laura.ferrer2@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 435,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/marc.reyes@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 434,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/carmen.serra@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/pablo.soler@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 434,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/jordi.serra2@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 639,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/miguel.bosch@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 444,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/guillem.llorens@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 446,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/sergio.puig@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 404,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/patricia.medina@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 453,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/marta.puig@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 433,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/ricard.nunez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 438,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.77",
+        "desde": "2026-10-09T16:06:00Z",
+        "hasta": "2026-10-09T20:06:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/ext.logisoft@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 574,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T00:23:30Z",
+        "hasta": "2026-10-11T00:23:30Z"
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T00:23:30Z",
+        "hasta": "2026-10-11T00:23:30Z"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T00:23:30Z",
+        "hasta": "2026-10-11T00:23:30Z"
+      },
+      "origen": "incidentes",
+      "ms": 43,
+      "chars": 5,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:30:04Z",
+        "hasta": "2026-10-10T00:50:04Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:30:09Z",
+        "hasta": "2026-10-10T00:50:09Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:41:06Z",
+        "hasta": "2026-10-10T01:01:06Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:55:00Z",
+        "hasta": "2026-10-10T01:15:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:55:05Z",
+        "hasta": "2026-10-10T01:15:05Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T00:42:37Z",
+        "hasta": "2026-10-11T00:42:37Z"
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T00:42:37Z",
+        "hasta": "2026-10-11T00:42:37Z"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T00:42:37Z",
+        "hasta": "2026-10-11T00:42:37Z"
+      },
+      "origen": "incidentes",
+      "ms": 42,
+      "chars": 5,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:30:04Z",
+        "hasta": "2026-10-10T00:50:04Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:30:09Z",
+        "hasta": "2026-10-10T00:50:09Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:41:06Z",
+        "hasta": "2026-10-10T01:01:06Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:55:00Z",
+        "hasta": "2026-10-10T01:15:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:55:05Z",
+        "hasta": "2026-10-10T01:15:05Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/adm.aortega@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 495,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T01:05:36Z",
+        "hasta": "2026-10-11T01:05:36Z"
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T01:05:36Z",
+        "hasta": "2026-10-11T01:05:36Z"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-09T01:05:36Z",
+        "hasta": "2026-10-11T01:05:36Z"
+      },
+      "origen": "incidentes",
+      "ms": 42,
+      "chars": 5,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:30:04Z",
+        "hasta": "2026-10-10T00:50:04Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:30:09Z",
+        "hasta": "2026-10-10T00:50:09Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:41:06Z",
+        "hasta": "2026-10-10T01:01:06Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:55:00Z",
+        "hasta": "2026-10-10T01:15:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/FS01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 611,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-10T00:55:05Z",
+        "hasta": "2026-10-10T01:15:05Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/sergio.navarro@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 467,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 31,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.10",
+        "desde": "2026-10-11T01:38:00Z",
+        "hasta": "2026-10-11T05:38:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/ricard.castells@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 663,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.95.154"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 274,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/irene.castells@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 450,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/celia.coll@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 434,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/oriol.lopez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 435,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/andrea.molina2@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 453,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "svc_backup",
+        "desde": "2026-10-12T01:18:04Z",
+        "hasta": "2026-10-14T01:18:04Z"
+      },
+      "origen": "incidentes",
+      "ms": 48,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "svc_backup",
+        "desde": "2026-10-12T01:18:04Z",
+        "hasta": "2026-10-14T01:18:04Z"
+      },
+      "origen": "incidentes",
+      "ms": 7,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/87.118.116.103"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 569,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "svc_backup",
+        "desde": "2026-10-12T01:18:04Z",
+        "hasta": "2026-10-14T01:18:04Z"
+      },
+      "origen": "incidentes",
+      "ms": 66,
+      "chars": 5,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/svc_backup@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 530,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/alba.aguilar@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 433,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:31:43Z",
+        "hasta": "2026-10-14T08:31:43Z"
+      },
+      "origen": "incidentes",
+      "ms": 47,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:31:43Z",
+        "hasta": "2026-10-14T08:31:43Z"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:31:43Z",
+        "hasta": "2026-10-14T08:31:43Z"
+      },
+      "origen": "incidentes",
+      "ms": 64,
+      "chars": 4,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/ERP-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 365,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:20:00Z",
+        "hasta": "2026-10-13T08:40:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/HR-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 370,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:26:00Z",
+        "hasta": "2026-10-13T08:46:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 5,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:32:00Z",
+        "hasta": "2026-10-13T08:52:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/CRM-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 389,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:38:00Z",
+        "hasta": "2026-10-13T08:58:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/adm.dnavarro@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 489,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:38:09Z",
+        "hasta": "2026-10-14T08:38:09Z"
+      },
+      "origen": "incidentes",
+      "ms": 47,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:38:09Z",
+        "hasta": "2026-10-14T08:38:09Z"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:38:09Z",
+        "hasta": "2026-10-14T08:38:09Z"
+      },
+      "origen": "incidentes",
+      "ms": 63,
+      "chars": 4,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/ERP-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 365,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:20:00Z",
+        "hasta": "2026-10-13T08:40:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/HR-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 370,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:26:00Z",
+        "hasta": "2026-10-13T08:46:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:32:00Z",
+        "hasta": "2026-10-13T08:52:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/CRM-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 389,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:38:00Z",
+        "hasta": "2026-10-13T08:58:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:46:55Z",
+        "hasta": "2026-10-14T08:46:55Z"
+      },
+      "origen": "incidentes",
+      "ms": 47,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:46:55Z",
+        "hasta": "2026-10-14T08:46:55Z"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:46:55Z",
+        "hasta": "2026-10-14T08:46:55Z"
+      },
+      "origen": "incidentes",
+      "ms": 63,
+      "chars": 4,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/ERP-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 365,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:20:00Z",
+        "hasta": "2026-10-13T08:40:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/HR-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 370,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:26:00Z",
+        "hasta": "2026-10-13T08:46:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:32:00Z",
+        "hasta": "2026-10-13T08:52:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/CRM-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 389,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:38:00Z",
+        "hasta": "2026-10-13T08:58:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:50:11Z",
+        "hasta": "2026-10-14T08:50:11Z"
+      },
+      "origen": "incidentes",
+      "ms": 48,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:50:11Z",
+        "hasta": "2026-10-14T08:50:11Z"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.dnavarro",
+        "desde": "2026-10-12T08:50:11Z",
+        "hasta": "2026-10-14T08:50:11Z"
+      },
+      "origen": "incidentes",
+      "ms": 65,
+      "chars": 4,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/ERP-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 365,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:20:00Z",
+        "hasta": "2026-10-13T08:40:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/HR-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 370,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:26:00Z",
+        "hasta": "2026-10-13T08:46:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/PRINT01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:32:00Z",
+        "hasta": "2026-10-13T08:52:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "activo",
+      "args": {
+        "ruta": "/assets/CRM-APP01"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 389,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.20.6.61",
+        "desde": "2026-10-13T08:38:00Z",
+        "hasta": "2026-10-13T08:58:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/adria.soler@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 432,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 33,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.77",
+        "desde": "2026-10-13T16:35:00Z",
+        "hasta": "2026-10-13T20:35:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.11",
+        "desde": "2026-10-13T23:35:00Z",
+        "hasta": "2026-10-14T03:35:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/eva.sanz@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 428,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/carlos.sanchez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 450,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/nuria.vidal@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 660,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/marina.munoz@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 587,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/andrea.font@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 580,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/raul.blanco@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 437,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/paula.nunez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 435,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/judith.fernandez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 456,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.90",
+        "desde": "2026-10-16T20:10:00Z",
+        "hasta": "2026-10-17T00:10:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.12",
+        "desde": "2026-10-18T00:46:00Z",
+        "hasta": "2026-10-18T04:46:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-17T01:16:59Z",
+        "hasta": "2026-10-19T01:16:59Z"
+      },
+      "origen": "incidentes",
+      "ms": 15,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-17T01:16:59Z",
+        "hasta": "2026-10-19T01:16:59Z"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 2,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.aortega",
+        "desde": "2026-10-17T01:16:59Z",
+        "hasta": "2026-10-19T01:16:59Z"
+      },
+      "origen": "incidentes",
+      "ms": 21,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/svc_print_upd@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/montse.munoz@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/clara.llorens@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 437,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/cristina.benitez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 446,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/hugo.iglesias@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 437,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/alba.sanz@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 441,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/lucia.castro@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 444,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/silvia.lopez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 431,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/beatriz.pena@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/daniel.diaz@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 427,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/marina.gomez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 438,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/irene.font3@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/cristina.romero@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 446,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/beatriz.ortega@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 445,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/carmen.vidal@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 439,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/paula.ramos@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 427,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/alejandro.ruiz@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 456,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/sergio.reyes@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 439,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/alejandro.ramos@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 453,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/alba.ferrer@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 430,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.13",
+        "desde": "2026-10-21T01:44:00Z",
+        "hasta": "2026-10-21T05:44:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/diego.soler@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 430,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/ines.bosch@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 429,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "nuria.vidal@tarvia.example",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 390,
+      "chars": 68,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/alvaro.dominguez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 445,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/joan.valls@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 432,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/paula.esteve@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 440,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/mireia.aguilar@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 439,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.77",
+        "desde": "2026-10-22T16:28:00Z",
+        "hasta": "2026-10-22T20:28:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/miguel.sanchez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 439,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/ricard.dominguez@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 450,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:idp_signins",
+      "args": {
+        "q": "adm.aferrer",
+        "desde": "2026-10-22T09:08:38Z",
+        "hasta": "2026-10-24T09:08:38Z"
+      },
+      "origen": "incidentes",
+      "ms": 34,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:ad_events",
+      "args": {
+        "q": "adm.aferrer",
+        "desde": "2026-10-22T09:08:38Z",
+        "hasta": "2026-10-24T09:08:38Z"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "q": "adm.aferrer",
+        "desde": "2026-10-22T09:08:38Z",
+        "hasta": "2026-10-24T09:08:38Z"
+      },
+      "origen": "incidentes",
+      "ms": 55,
+      "chars": 0,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/adm.aferrer@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 495,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.14",
+        "desde": "2026-10-24T23:13:00Z",
+        "hasta": "2026-10-25T03:13:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 3,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/victor.lozano2@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 438,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/marc.herrera@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 444,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/irene.vega@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 2,
+      "chars": 429,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/patricia.vidal@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 439,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/pol.medina@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 438,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/sergi.riera@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 441,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "q": "ext.logisoft",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "incidentes",
+      "ms": 32,
+      "chars": 30,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "q": "10.99.60.15",
+        "desde": "2026-10-28T02:04:00Z",
+        "hasta": "2026-10-28T06:04:00Z"
+      },
+      "origen": "incidentes",
+      "ms": 4,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/montse.soler@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 435,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/oscar.coll@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 434,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/oriol.alonso@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 444,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "usuario",
+      "args": {
+        "ruta": "/users/neus.romero@tarvia.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 435,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/wetransfer.com"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 352,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.11.58"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/avqs.mcafee.com"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 58,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.11.127"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/dnsbl.spamhaus.org"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 61,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/e5.sk"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 48,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.23.180"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.23.46"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/141.94.96.144"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 514,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/45.148.10.121"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 566,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/pool.supportxmr.com"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 330,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.23.115"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.22.165"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.23.43"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.34.108"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.35.57"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.34.179"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/203.0.113.45"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 276,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/tarvia-sso-login.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 67,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.35.136"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/sophosxl.net"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 55,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.47.25"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.46.142"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.46.75"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.95.151"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 260,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.58.25"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.58.247"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.58.174"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.59.1"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 252,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.58.108"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.58.177"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.59.65"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/81.28.167.30"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 544,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/aplihartom.com"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 330,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/203.0.113.88"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 517,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/107.174.115.43"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 531,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.240.10"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 265,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.58.103"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.70.16"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.70.159"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.70.66"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.70.11"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.201"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 562,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.2.58"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 273,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.106"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.110"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.101"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.108"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.105"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.107"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.103"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.104"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.109"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.102"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 553,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.137"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.129"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.132"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.121"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.119"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.113"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.127"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.124"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 266,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/77.90.185.20"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 261,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.82.52"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/cdn-wms-metrics.example"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 66,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.81.155"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.81.199"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.82.102"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.81.151"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.94.7"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 252,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.93.126"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.94.11"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.93.191"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.93.194"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.94.79"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.51.100.210"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 276,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.105.71"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/80.67.167.81"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 569,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/109.70.100.4"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 581,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/87.118.116.103"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 569,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/171.25.193.25"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 602,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/192.42.116.99"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 578,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/179.43.182.232"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 578,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.105.9"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.105.74"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.106.19"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.105.197"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/npm-telemetry-stats.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 70,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.105.139"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.116.244"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.117.58"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/mega.nz"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 338,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.117.206"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.128.125"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/2.57.121.25"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.128.181"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.129.70"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.129.150"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.128.178"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.128.120"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.128.239"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.140.209"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.140.138"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.141.99"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.141.32"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.152.38"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.152.239"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.152.190"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.152.34"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.152.135"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.164.130"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.164.76"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.163.185"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.164.127"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.175.164"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.175.29"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.175.90"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.187.1"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.187.151"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.187.5"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/packaging-iberia-pagos.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 73,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/203.0.113.180"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 257,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/packaging-iberia-portal.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 74,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.187.148"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.186.183"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.199.183"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/pos-update-service.example"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 69,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.198.224"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.199.180"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.199.116"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.210.119"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.211.156"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.222.203"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.223.17"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.222.73"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.222.198"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.234.182"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.234.83"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.234.229"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.246.122"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.245.181"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.246.117"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.245.227"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 258,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.1.108"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.1.46"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 252,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.2.69"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 252,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.18.1.247"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.13.67"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.12.240"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.13.137"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.13.142"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.14.23"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.25.60"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.24.236"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.25.195"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.24.167"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.25.122"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.25.57"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.36.100"
+      },
+      "origen": "incidentes",
+      "ms": 0,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.36.234"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.36.172"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.36.229"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.36.96"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.48.145"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.49.46"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.48.221"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.48.18"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.49.42"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.48.13"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.48.217"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.59.226"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.60.67"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.60.23"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.60.171"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.60.120"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.60.20"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 254,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.60.117"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.71.149"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.71.247"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.72.2"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 252,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "intel",
+      "args": {
+        "ruta": "/intel/198.19.71.196"
+      },
+      "origen": "incidentes",
+      "ms": 1,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "backup-sync",
+        "desde": "",
+        "hasta": "",
+        "fuentes": [
+          "idp_signins",
+          "vpn",
+          "cloudtrail"
+        ]
+      },
+      "origen": "agente",
+      "ms": 38,
+      "chars": 1403,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "svc_ecom_deploy",
+        "desde": "",
+        "hasta": "",
+        "fuentes": [
+          "idp_signins",
+          "vpn",
+          "cloudtrail"
+        ]
+      },
+      "origen": "agente",
+      "ms": 32,
+      "chars": 1292,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "2.57.121.25",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 7,
+      "chars": 300,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "2.57.121.25",
+        "desde": "2026-10-08T00:14:28Z",
+        "hasta": "2026-10-19T00:51:59Z"
+      },
+      "origen": "agente",
+      "ms": 33,
+      "chars": 1406,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "AKIATARVIA7XQ2DEPLY",
+        "desde": "2026-10-08T00:14:28Z",
+        "hasta": "2026-10-19T00:51:59Z"
+      },
+      "origen": "agente",
+      "ms": 14,
+      "chars": 517,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "backup-sync",
+        "desde": "2026-10-08T00:14:28Z",
+        "hasta": "2026-10-19T00:51:59Z"
+      },
+      "origen": "agente",
+      "ms": 38,
+      "chars": 1403,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "svc_ecom_deploy",
+        "desde": "2026-10-08T00:14:28Z",
+        "hasta": "2026-10-19T00:51:59Z"
+      },
+      "origen": "agente",
+      "ms": 13,
+      "chars": 517,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "CI-RUNNER01",
+        "desde": "2026-10-08T00:14:28Z",
+        "hasta": "2026-10-19T00:51:59Z"
+      },
+      "origen": "agente",
+      "ms": 4,
+      "chars": 181,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "storage.googleapis.com",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 6,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "tarvia-checkout-utils",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 2,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "f412c70fef24e226c48b62c885087042fb88ddae0df4f4d5386f4b48156a676c",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "npm-telemetry-stats.example",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "AKIATARVIABKPSYNC01",
+        "desde": "2026-10-08T00:14:28Z",
+        "hasta": "2026-10-19T00:51:59Z"
+      },
+      "origen": "agente",
+      "ms": 37,
+      "chars": 1400,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "f412c70fef24e226c48b62c885087042fb88ddae0df4f4d5386f4b48156a676c",
+        "desde": "2026-10-08T00:14:28Z",
+        "hasta": "2026-10-19T00:51:59Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "npm-telemetry-stats.example",
+        "desde": "2026-10-08T00:14:28Z",
+        "hasta": "2026-10-19T00:51:59Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 1,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "tarvia-checkout-utils",
+        "desde": "2026-10-08T00:14:28Z",
+        "hasta": "2026-10-19T00:51:59Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 2,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "indice:eventos_de",
+      "args": {
+        "q": "storage.googleapis.com",
+        "desde": "2026-10-08T00:14:28Z",
+        "hasta": "2026-10-19T00:51:59Z"
+      },
+      "origen": "agente",
+      "ms": 0,
+      "chars": 3,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "consultar_inteligencia",
+      "args": {
+        "indicador": "2.57.121.25"
+      },
+      "origen": "agente",
+      "ms": 3,
+      "chars": 256,
+      "error": null,
+      "preview": "{\"indicator\": \"2.57.121.25\", \"tip\": null, \"geo\": {\"ip\": \"2.57.121.25\", \"country\": \"RO\", \"city\": \"Timisoara\", \"asn\": \"AS47890\", \"as_org\": \"UNMANAGED LTD\", \"is_tor\": \"False\", \"is_vpn_provider\": \"False\", \"is_hosting\": \"True\", \"is_residential_proxy\": \"False\"}}"
+    },
+    {
+      "tool": "consultar_inteligencia",
+      "args": {
+        "indicador": "npm-telemetry-stats.example"
+      },
+      "origen": "agente",
+      "ms": 1,
+      "chars": 70,
+      "error": null,
+      "preview": "{\"indicator\": \"npm-telemetry-stats.example\", \"tip\": null, \"geo\": null}"
+    },
+    {
+      "tool": "consultar_activo",
+      "args": {
+        "hostname_o_ip": "CI-RUNNER01"
+      },
+      "origen": "agente",
+      "ms": 4,
+      "chars": 468,
+      "error": null,
+      "preview": "{\"asset_id\": \"A01175\", \"hostname\": \"CI-RUNNER01\", \"ip\": \"172.16.10.21\", \"type\": \"Runner CI/CD\", \"os\": \"Amazon Linux 2023\", \"criticality\": \"Alta\", \"zone\": \"AWS-PROD\", \"location\": \"AWS eu-west-1\", \"business_service\": \"Integración continua\", \"owner_upn\": \"\", \"internet_facing\": \"False\", \"edr_installed\":"
+    },
+    {
+      "tool": "consultar_usuario",
+      "args": {
+        "upn_o_username": "svc_ecom_deploy"
+      },
+      "origen": "agente",
+      "ms": 6,
+      "chars": 14,
+      "error": "404: Not Found",
+      "preview": "404: Not Found"
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/intel/2.57.121.25"
+      },
+      "origen": "politica",
+      "ms": 2,
+      "chars": 256,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/intel/npm-telemetry-stats.example"
+      },
+      "origen": "politica",
+      "ms": 1,
+      "chars": 70,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "politica",
+      "args": {
+        "ruta": "/assets/CI-RUNNER01"
+      },
+      "origen": "politica",
+      "ms": 1,
+      "chars": 468,
+      "error": null,
+      "preview": ""
+    }
+  ],
+  "razonamiento": [],
+  "uso": {
+    "input_tokens": 56620,
+    "output_tokens": 2274,
+    "llamadas_modelo": 5
+  },
+  "modelo": "gemini/gemini-3.5-flash",
+  "con_llm": true,
+  "motivo": "",
+  "generado_en": "2026-11-08T00:49:43.729247+00:00",
+  "segundos": 92.0
+}

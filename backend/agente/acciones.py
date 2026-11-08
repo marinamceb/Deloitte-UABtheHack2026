@@ -11,6 +11,9 @@ Ciclo de una solicitud:
     fallida ──reintentar()──▶ ejecutada | fallida       (p. ej. la API no respondía)
 
 Qué aprobaciones hacen falta lo decide politica.requisitos (apartado 4); quién puede darlas, roles.cumple. Reglas:
+- Las personas que deciden en la consola son del SOC (usuarios_soc.py). La aprobación del responsable de un servicio
+  de Tarvia (aislar un servidor) la registra un N2 o superior en su nombre (`en_nombre_de`): se comprueba en el
+  directorio de la empresa que esa persona es la responsable y queda quién la registró.
 - Cuatro ojos: cada aprobación la da una persona distinta (el N2 no puede firmar también como responsable).
 - Sin aprobaciones requeridas (bloquear un IOC malicioso, purgar un correo) la ejecuta directamente cualquiera del SOC.
 - Antes de ejecutar se mira /containment/log para no repetir una acción ya hecha.
@@ -169,14 +172,21 @@ def _requisito_para(sol: dict, persona: dict) -> int | None:
     return next((i for i in _faltan(sol) if roles.cumple(persona, sol["requisitos"][i])), None)
 
 
+def _requisito_negocio(sol: dict) -> int | None:
+    """Primer requisito pendiente que es la aprobación de un responsable de servicio de la empresa."""
+    return next((i for i in _faltan(sol) if sol["requisitos"][i]["rol"] == "responsable_servicio"), None)
+
+
 def que_puede_hacer(sol: dict, persona: dict) -> set[str]:
     """Operaciones que esta persona puede hacer ahora sobre la solicitud (para la web y el CLI)."""
     ops = set()
     ya_firmo = any(a["email"] == persona["email"] for a in sol["aprobaciones"])
     soc = roles.es_soc(persona)
-    if sol["estado"] == PENDIENTE and not ya_firmo:
-        if (not sol["requisitos"] and soc) or _requisito_para(sol, persona) is not None:
+    if sol["estado"] == PENDIENTE:
+        if not ya_firmo and ((not sol["requisitos"] and soc) or _requisito_para(sol, persona) is not None):
             ops |= {"aprobar", "rechazar"}
+        if _requisito_negocio(sol) is not None and roles.registra_en_nombre(persona):
+            ops |= {"registrar_responsable", "rechazar"}
     if sol["estado"] == APROBADA and soc:
         ops |= {"marcar_hecha", "rechazar"}
     if sol["estado"] == FALLIDA and soc:
@@ -194,7 +204,7 @@ def pendientes_de(persona: dict) -> list[dict]:
 def _persona(email: str) -> dict:
     persona = roles.identificar(email)
     if persona is None:
-        raise PermisoDenegado(f"{email} no existe en el directorio o no tiene un rol con acceso")
+        raise PermisoDenegado(f"{email} no es un usuario activo del SOC")
     return persona
 
 
@@ -214,36 +224,68 @@ def _modificar(id_solicitud: str, cambio) -> dict:
         return datos[id_solicitud]
 
 
-def aprobar(id_solicitud: str, email: str, comentario: str = "") -> dict:
-    """Añade la aprobación de esta persona (la del requisito que cumpla) y, si ya están todas, ejecuta."""
+def aprobar(id_solicitud: str, email: str, comentario: str = "", en_nombre_de: str = "") -> dict:
+    """Añade la aprobación de esta persona (la del requisito que cumpla) y, si ya están todas, ejecuta.
+    Con `en_nombre_de` (email de Tarvia), registra la aprobación de ese responsable de servicio."""
     persona = _persona(email)
 
     def cambio(sol):
         if sol["estado"] != PENDIENTE:
             raise EstadoNoValido(f"La solicitud está {sol['estado']}")
-        if any(a["email"] == persona["email"] for a in sol["aprobaciones"]):
-            raise PermisoDenegado("Ya has aprobado esta acción: la siguiente aprobación debe darla otra persona")
-        if sol["requisitos"]:
-            i = _requisito_para(sol, persona)
-            if i is None:
-                faltan = ", ".join(sol["requisitos"][j]["etiqueta"] for j in _faltan(sol))
-                raise PermisoDenegado(f"Tu rol ({', '.join(persona['roles'])}) no cubre lo que falta: {faltan}")
-            etiqueta = sol["requisitos"][i]["etiqueta"]
-        elif roles.es_soc(persona):
-            i, etiqueta = None, "SOC (ejecución directa del N1)"
+        if en_nombre_de:
+            _registrar_responsable(sol, persona, en_nombre_de, comentario)
         else:
-            raise PermisoDenegado("Solo el personal del SOC puede ejecutar esta acción")
-        sol["aprobaciones"].append({"requisito": i, "email": persona["email"], "nombre": persona["nombre"],
-                                    "rol": etiqueta, "ts": ahora_iso(), "comentario": comentario})
-        _anotar(sol, persona, "aprobación", comentario, etiqueta)
+            _aprobar_como_soc(sol, persona, comentario)
         if not _faltan(sol):
             if sol["tipo"] == "api":
                 _ejecutar(sol, persona)
             else:
                 sol["estado"] = APROBADA
-                _anotar(sol, persona, "aprobada", "Tarea manual: falta realizarla y marcarla como hecha", etiqueta)
+                _anotar(sol, persona, "aprobada", "Tarea manual: falta realizarla y marcarla como hecha")
 
     return _modificar(id_solicitud, cambio)
+
+
+def _registrar_responsable(sol: dict, persona: dict, email_empresa: str, comentario: str) -> None:
+    """Aprobación de un responsable de servicio de Tarvia, obtenida y registrada por un N2 o superior del SOC."""
+    if not roles.registra_en_nombre(persona):
+        raise PermisoDenegado("Solo un N2, el Responsable SOC o el CISO pueden registrar la aprobación de negocio")
+    i = _requisito_negocio(sol)
+    if i is None:
+        raise PermisoDenegado("Esta acción no necesita (o ya tiene) la aprobación de un responsable de servicio")
+    req = sol["requisitos"][i]
+    ficha = roles.responsable_de(email_empresa, req["servicio"])
+    if ficha is None:
+        raise PermisoDenegado(f"{email_empresa} no es {req['cargo']}, responsable de {req['servicio']}, según el "
+                              "directorio de la empresa")
+    email = ficha["upn"].lower()
+    if any(a["email"] == email for a in sol["aprobaciones"]):
+        raise PermisoDenegado(f"{email} ya consta como aprobador de esta acción")
+    sol["aprobaciones"].append({"requisito": i, "email": email, "nombre": ficha.get("display_name", email),
+                                "rol": req["etiqueta"], "ts": ahora_iso(), "comentario": comentario,
+                                "registrado_por": persona["email"]})
+    _anotar(sol, persona, "aprobación de negocio registrada",
+            f"{ficha.get('display_name', email)} <{email}> ({req['etiqueta']}): {comentario}".rstrip(": "))
+
+
+def _aprobar_como_soc(sol: dict, persona: dict, comentario: str) -> None:
+    if any(a["email"] == persona["email"] for a in sol["aprobaciones"]):
+        raise PermisoDenegado("Ya has aprobado esta acción: la siguiente aprobación debe darla otra persona")
+    if sol["requisitos"]:
+        i = _requisito_para(sol, persona)
+        if i is None:
+            faltan = ", ".join(sol["requisitos"][j]["etiqueta"] for j in _faltan(sol))
+            pista = (" (la del responsable de servicio se registra en su nombre)"
+                     if _requisito_negocio(sol) is not None else "")
+            raise PermisoDenegado(f"Tu rol ({', '.join(persona['roles'])}) no cubre lo que falta: {faltan}{pista}")
+        etiqueta = sol["requisitos"][i]["etiqueta"]
+    elif roles.es_soc(persona):
+        i, etiqueta = None, "SOC (ejecución directa del N1)"
+    else:
+        raise PermisoDenegado("Solo el personal del SOC puede ejecutar esta acción")
+    sol["aprobaciones"].append({"requisito": i, "email": persona["email"], "nombre": persona["nombre"],
+                                "rol": etiqueta, "ts": ahora_iso(), "comentario": comentario})
+    _anotar(sol, persona, "aprobación", comentario, etiqueta)
 
 
 def rechazar(id_solicitud: str, email: str, motivo: str) -> dict:

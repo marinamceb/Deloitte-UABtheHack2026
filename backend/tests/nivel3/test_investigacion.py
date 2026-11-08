@@ -137,3 +137,48 @@ def test_fatiga_mfa_compacta():
     h = I.investigar(["ALR-20261010-011827", "ALR-20261010-011828"])
     assert len(h["cronologia"]) <= 8                      # 26 pushes agrupados por resultado
     assert {"SIGN-0084055", "AUD-0000828", "AUD-0000829"} <= _ids(h)
+
+
+# --------------------------------------------------------------------------------------------- optimizaciones 6 y 7
+
+def test_rutina_de_una_entidad(monkeypatch):
+    """Lo que un equipo hace en 3 días distintos es rutina suya: no es «raro» ni «operación rara» para él."""
+    monkeypatch.setattr(I, "dispersion", lambda x: 1)
+    monkeypatch.setattr(I, "frecuencia_tipos", lambda f: {"postinstall": 11})
+    def ev(dia, dom):
+        return {"_fuente": "cicd_builds", "event_id": f"CI-{dia}", "timestamp": f"2026-10-{dia}T10:00:00Z",
+                "step": "postinstall:x", "runner": "CI-RUNNER01", "details": {"network": f"GET https://{dom}/x"}}
+    evs = [ev("12", "storage.googleapis.com"), ev("14", "storage.googleapis.com"), ev("15", "storage.googleapis.com"),
+           ev("13", "npm-telemetry-stats.example")]
+    rutina = I.habitos(evs)
+    ctx = type("C", (), {"alerta_de_evento": {}, "ids_alertas": set(), "iocs": set()})()
+    habitual = I.senales(evs[0], ctx, I.entidades_de_evento(evs[0]), rutina)
+    nuevo = I.senales(evs[3], ctx, I.entidades_de_evento(evs[3]), rutina)
+    assert not habitual                                                    # ni raro ni operación: rutina del runner
+    assert {c for c, _ in nuevo} == {"raro"}            # visto un solo día: raro (la operación sí es rutina)
+
+
+def test_pivote_debil_lejos_de_las_alertas():
+    alertas = [I.utc("2026-10-15T00:00:00Z")]
+    assert I.lejos({"timestamp": "2026-10-10T00:00:00Z"}, alertas)
+    assert not I.lejos({"timestamp": "2026-10-14T12:00:00Z"}, alertas)
+
+
+def test_pivotes_especiales():
+    correo = {"_fuente": "email", "event_id": "EML-1", "message_id": "<abc@evil.example>"}
+    assert "msg:<abc@evil.example>" in I.pivotes_especiales(correo, set())
+    alta = {"_fuente": "ad_events", "event_id": "ADE-1", "event_code": 4720, "target": "svc_print_upd"}
+    assert I.pivotes_especiales(alta, set()) == {"user:svc_print_upd": "evento ADE-1 (cuenta creada por el atacante)"}
+    nube = {"_fuente": "cloudtrail", "event_id": "CT-1", "eventName": "CreateUser",
+            "requestParameters": {"userName": "backup-sync"}}
+    assert "user:backup-sync" in I.pivotes_especiales(nube, set())
+    assert "session:s-1" in I.pivotes_especiales({"_fuente": "idp_signins", "event_id": "S-1"}, {"session:s-1"})
+
+
+def test_acceso_inicial_interno():
+    """Amenaza interna: el primer paso del núcleo (sin nada externo) también es candidato."""
+    crono = [{"event_id": "SQL-1", "timestamp": "1", "nivel": "núcleo", "description": "", "entidades": ["user:nuria"],
+              "senales": ["alerta: x"]},
+             {"event_id": "PRX-1", "timestamp": "2", "nivel": "núcleo", "description": "", "entidades": ["dom:mega.nz"],
+              "senales": ["alerta: x"]}]
+    assert [c["event_id"] for c in I.acceso_inicial(crono)["acceso_inicial_candidatos"]] == ["SQL-1", "PRX-1"]

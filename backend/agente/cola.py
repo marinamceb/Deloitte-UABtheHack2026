@@ -1,7 +1,8 @@
 """[Nivel 1 · priorización] Cola de triaje ordenada por prioridad, sin LLM.
 
 Para cada incidente candidato (o alerta suelta) se estima la severidad con la matriz de la política (regla más grave ×
-criticidad real según la CMDB y el directorio (API, con caché), +1 por identidad VIP o privilegiada), suponiendo lo peor (true_positive)
+criticidad real según la CMDB y el directorio (API, con caché), +1 por identidad VIP o privilegiada),
+suponiendo lo peor (true_positive)
 salvo que todas sus alertas estén cubiertas por un cambio aprobado (entonces, actividad autorizada), y el plazo del
 SLA (politica_soc.md, apartado 3) desde la alerta más antigua. Orden:
   1. severidad estimada (critical primero),
@@ -70,3 +71,9 @@ def priorizar(alertas: list[dict], omitir: set[str] = frozenset()) -> list[dict]
         entradas.append({"alerta": lider, "alert_ids": ids, **estimar(grupo)})
     entradas.sort(key=lambda x: (-NIVELES.index(x["severidad"]), x["ruido"], len(x["alert_ids"]) == 1, x["vence"]))
     return entradas
+
+
+def actual() -> list[dict]:
+    """Todas las alertas nuevas ordenadas por prioridad, sin las que ya están en un ticket (CLI y web)."""
+    from . import almacen
+    return priorizar(list(incidentes.todas_las_alertas().values()), almacen.alertas_en_tickets())

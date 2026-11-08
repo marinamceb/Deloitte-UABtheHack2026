@@ -1,0 +1,9 @@
+{"ts": "2026-11-08T06:55:31.427867+00:00", "evento": "login_rechazado", "email": "n2", "detalle": "credenciales incorrectas", "ip": "172.19.0.1"}
+{"ts": "2026-11-08T06:55:31.454382+00:00", "evento": "login", "email": "n2@soc.example", "detalle": "N2", "ip": "172.19.0.1"}
+{"ts": "2026-11-08T07:24:41.795264+00:00", "evento": "login", "email": "n1@soc.example", "detalle": "N1", "ip": "172.19.0.1"}
+{"ts": "2026-11-08T07:26:14.969366+00:00", "evento": "logout", "email": "n1@soc.example", "detalle": "", "ip": "172.19.0.1"}
+{"ts": "2026-11-08T07:26:31.384664+00:00", "evento": "login", "email": "responsable@soc.example", "detalle": "responsable_soc", "ip": "172.19.0.1"}
+{"ts": "2026-11-08T07:27:04.292752+00:00", "evento": "logout", "email": "responsable@soc.example", "detalle": "", "ip": "172.19.0.1"}
+{"ts": "2026-11-08T07:27:51.706619+00:00", "evento": "login", "email": "n2@soc.example", "detalle": "N2", "ip": "172.19.0.1"}
+{"ts": "2026-11-08T07:36:43.765127+00:00", "evento": "login", "email": "n1@soc.example", "detalle": "N1", "ip": "172.19.0.1"}
+{"ts": "2026-11-08T07:54:35.988254+00:00", "evento": "login", "email": "n1@soc.example", "detalle": "N1", "ip": "172.19.0.1"}

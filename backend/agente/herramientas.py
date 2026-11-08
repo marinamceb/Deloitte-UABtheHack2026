@@ -8,6 +8,7 @@ Ninguna herramienta ejecuta contención: el agente solo propone; ejecutar es una
 import datetime as dt
 import json
 import re
+import threading
 import time
 from contextlib import contextmanager
 
@@ -24,23 +25,62 @@ FUENTES_LOG = [
 
 # --------------------------------------------------------------------------------------------- traza
 
-TRAZA: list[dict] = []  # se reinicia por alerta desde triaje.py
-ORIGEN = "agente"       # quién hace la consulta: agente (modelo), auto (investigación previa), reglas, politica
+# La traza y el origen son por hilo: la web atiende peticiones mientras un hilo de fondo tría o investiga, y las
+# consultas de unos no deben colarse en la traza de otros. Para cada hilo funcionan como una lista y un texto normales.
+_LOCAL = threading.local()
+
+
+class _TrazaPorHilo:
+    """Lista de consultas del hilo actual (se reinicia por alerta desde triaje.py / informe.py)."""
+
+    def _lista(self) -> list[dict]:
+        if not hasattr(_LOCAL, "traza"):
+            _LOCAL.traza = []
+        return _LOCAL.traza
+
+    def append(self, x: dict) -> None:
+        self._lista().append(x)
+
+    def clear(self) -> None:
+        self._lista().clear()
+
+    def __iter__(self):
+        return iter(list(self._lista()))
+
+    def __len__(self) -> int:
+        return len(self._lista())
+
+    def __getitem__(self, i):
+        return self._lista()[i]
+
+
+TRAZA = _TrazaPorHilo()
+
+
+def _origen_actual() -> str:
+    """Quién hace la consulta: agente (modelo), auto (investigación previa), reglas, politica..."""
+    return getattr(_LOCAL, "origen", "agente")
+
+
+def __getattr__(nombre: str):   # compatibilidad: herramientas.ORIGEN sigue funcionando (por hilo)
+    if nombre == "ORIGEN":
+        return _origen_actual()
+    raise AttributeError(nombre)
 
 
 @contextmanager
 def origen(nombre: str):
-    """Marca con `nombre` las consultas hechas dentro del bloque (y restaura el origen anterior)."""
-    global ORIGEN
-    previo, ORIGEN = ORIGEN, nombre
+    """Marca con `nombre` las consultas hechas dentro del bloque en este hilo (y restaura el origen anterior)."""
+    previo = _origen_actual()
+    _LOCAL.origen = nombre
     try:
         yield
     finally:
-        ORIGEN = previo
+        _LOCAL.origen = previo
 
 
 def _registrar(nombre: str, args: dict, ms: int, chars: int, error: str | None, preview: str = "") -> None:
-    TRAZA.append({"tool": nombre, "args": args, "origen": ORIGEN, "ms": ms, "chars": chars, "error": error,
+    TRAZA.append({"tool": nombre, "args": args, "origen": _origen_actual(), "ms": ms, "chars": chars, "error": error,
                   "preview": preview})
 
 
@@ -145,6 +185,23 @@ def buscar_alertas(texto: str, desde: str = "", hasta: str = "", limit: int = 30
         if d is not None:
             items = [a for a in d["items"] if _coincide(texto, a)]
             d = {"total": len(items), "items": items[:limit]}
+    # alertas recibidas por el backend (agente/ingesta.py): la API simulada no las conoce
+    from .ingesta import leer
+    extra = [a for a in leer() if _coincide(texto, a) and (not desde or a["created_at"] >= desde)
+             and (not hasta or a["created_at"] <= hasta)]
+    if extra and d is not None:
+        items = d["items"] + extra
+        d = {"total": d.get("total", len(d["items"])) + len(extra), "items": items[:limit]}
+    return d, e, ms
+
+
+def alerta_por_id(alert_id: str):
+    """Una alerta de la API o, si no está ahí, de las recibidas por el backend. Devuelve (datos, error, ms)."""
+    d, e, ms = _get(f"/alerts/{alert_id}")
+    if d is None:
+        from .ingesta import por_id
+        if recibida := por_id(alert_id):
+            return recibida, None, ms
     return d, e, ms
 
 
@@ -168,7 +225,7 @@ def consultar_alerta(alert_id: str) -> str:
     Args:
         alert_id: p. ej. ALR-20261005-000301.
     """
-    return _salida("consultar_alerta", {"alert_id": alert_id}, *_get(f"/alerts/{alert_id}"))
+    return _salida("consultar_alerta", {"alert_id": alert_id}, *alerta_por_id(alert_id))
 
 
 @beta_tool

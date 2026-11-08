@@ -3,7 +3,7 @@ FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     DATASET_DIR=/dataset SALIDAS_DIR=/datos/salidas FRONTEND_DIR=/sin-frontend \
-    SOC_API_URL=http://soc-api:8000 \
+    SOC_API_URL=http://host.docker.internal:8000 \
     PYTEST_ADDOPTS="-p no:cacheprovider"
 WORKDIR /app
 COPY requirements.txt .
