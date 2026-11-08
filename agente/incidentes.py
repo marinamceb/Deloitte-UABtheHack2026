@@ -79,6 +79,21 @@ def _cubiertas() -> dict[str, frozenset[str]]:
     return {i: frozenset(c) for i, a in todas_las_alertas().items() if (c := cambios.ids_que_cubren(a))}
 
 
+@lru_cache(maxsize=1)
+def _ids_senal() -> frozenset[str]:
+    return frozenset(a["alert_id"] for a in _senal())
+
+
+def es_ruido(alert_id: str) -> bool:
+    """Ruido de fondo: patrón repetido >= UMBRAL_RUIDO veces y no cubierto por un cambio aprobado."""
+    return alert_id not in _ids_senal()
+
+
+def cubierta_por_cambio(alert_id: str) -> frozenset[str]:
+    """Cambios aprobados que cubren la alerta (vacío si ninguno)."""
+    return _cubiertas().get(alert_id, frozenset())
+
+
 def _senal() -> list[dict]:
     """Alertas que no son ruido de fondo (las cubiertas por un cambio aprobado nunca lo son)."""
     alertas = todas_las_alertas().values()

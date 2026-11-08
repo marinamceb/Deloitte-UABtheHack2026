@@ -1,4 +1,4 @@
-"""Configuración común de pytest para tests/nivel1, tests/nivel2 (y la ruta del proyecto)."""
+"""Configuración común de pytest para tests/nivel1, tests/nivel2, tests/nivel3 (y la ruta del proyecto)."""
 import sys
 from pathlib import Path
 

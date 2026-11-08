@@ -81,3 +81,7 @@ env/
 
 # Resultado generado por tests/evaluacion/evaluar.py
 tests/evaluacion/resultado.json
+
+# Índice local de logs (agent.py --construir-indice)
+salidas/indice_logs.sqlite*
+salidas/indice_logs.tmp

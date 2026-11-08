@@ -1,0 +1,561 @@
+{
+  "alerta": {
+    "alert_id": "ALR-20261011-011877",
+    "created_at": "2026-10-11T01:40:22.000Z",
+    "source_product": "VPN",
+    "rule_id": "UC-VPN-001",
+    "rule_name": "Acceso VPN de proveedor fuera de horario o desde origen nuevo",
+    "severity": "low",
+    "status": "new",
+    "mitre": {
+      "tactic": "Initial Access",
+      "technique_id": "T1133",
+      "technique": "External Remote Services"
+    },
+    "description": "Cuenta de tercero conectada fuera de su ventana contractual o desde un ASN no visto.",
+    "entities": {
+      "users": [
+        {
+          "upn": "ext.logisoft@tarvia.example",
+          "display_name": "Logisoft Solutions (proveedor WMS)"
+        }
+      ],
+      "ips": [
+        "77.90.185.20"
+      ]
+    },
+    "evidence": {
+      "account_type": "external",
+      "contract_window": "L-V 8-18 h",
+      "local_time": "Sun 03:38",
+      "src_asn": "Limited Network LTD",
+      "usual_src": "Logisoft Madrid (AS64650)",
+      "mfa": "TOTP aprobado"
+    },
+    "related_events": [
+      "VPN-0010704",
+      "FW-0026536"
+    ],
+    "runbook": "RB-03"
+  },
+  "ticket": {
+    "ticket_id": "TKT-20261011-011877",
+    "alert_ids": [
+      "ALR-20261011-011877",
+      "ALR-20261009-002236",
+      "ALR-20261013-003637",
+      "ALR-20261014-011878",
+      "ALR-20261018-011879"
+    ],
+    "title": "Acceso VPN no autorizado de proveedor externo a WMS01 desde Lituania",
+    "verdict": "true_positive",
+    "confidence": 0.95,
+    "severity": "medium",
+    "severity_rationale": "Regla low × WMS01 (Alta) = low; +1 (Acceso interactivo RDP confirmado desde origen de hosting no autorizado hacia servidor crítico WMS01.) → medium",
+    "affected": {
+      "users": [
+        "ext.logisoft@tarvia.example"
+      ],
+      "hosts": [
+        "WMS01"
+      ],
+      "business_services": [
+        "Gestión de almacén (WMS)",
+        "Logística y distribución online"
+      ],
+      "customers": []
+    },
+    "summary": "La cuenta de proveedor externo ext.logisoft ha realizado múltiples conexiones VPN y accesos RDP al servidor crítico WMS01 fuera de su ventana contractual y desde una infraestructura de hosting en Lituania sin cambio aprobado. Este patrón recurrente apunta a un compromiso de credenciales o uso no autorizado de la cuenta, poniendo en riesgo la logística y distribución online.",
+    "evidence": [
+      {
+        "source": "vpn",
+        "event_id": "VPN-0010704",
+        "finding": "Conexión VPN de ext.logisoft desde IP de hosting en Lituania (77.90.185.20) fuera de horario (Sun 03:38)."
+      },
+      {
+        "source": "firewall",
+        "event_id": "FW-0026536",
+        "finding": "Tráfico RDP (TCP 3389) permitido desde el pool VPN hacia servidor crítico WMS01 (10.40.2.10)."
+      },
+      {
+        "source": "vpn",
+        "event_id": "VPN-0010706",
+        "finding": "Conexión VPN de ext.logisoft desde IP de hosting en Lituania (77.90.185.20) en horario nocturno (Wed 01:35)."
+      },
+      {
+        "source": "vpn",
+        "event_id": "VPN-0010708",
+        "finding": "Conexión VPN de ext.logisoft desde IP de hosting en Lituania (77.90.185.20) en horario nocturno (Sun 02:46)."
+      }
+    ],
+    "enrichment": [
+      {
+        "indicator": "77.90.185.20",
+        "type": "ip",
+        "source": "geoip_asn",
+        "result": "Vilna, Lituania - Limited Network LTD (Hosting)"
+      },
+      {
+        "indicator": "198.18.240.10",
+        "type": "ip",
+        "source": "geoip_asn",
+        "result": "Sevilla, España - Telefónica de España (Uso habitual)"
+      }
+    ],
+    "mitre": [
+      "T1133"
+    ],
+    "recommended_actions": [
+      {
+        "action": "block_ioc",
+        "target": "77.90.185.20",
+        "requires_approval": false,
+        "justification": "Bloquear la IP de hosting maliciosa en el perímetro y proxy."
+      },
+      {
+        "action": "revoke_sessions",
+        "target": "ext.logisoft@tarvia.example",
+        "requires_approval": true,
+        "justification": "Revocar todas las sesiones activas de la cuenta de proveedor externo.",
+        "approvers": "N2"
+      },
+      {
+        "action": "disable_user",
+        "target": "ext.logisoft@tarvia.example",
+        "requires_approval": true,
+        "justification": "Deshabilitar temporalmente la cuenta de proveedor para contener el acceso no autorizado.",
+        "approvers": "N2"
+      }
+    ],
+    "escalation": {
+      "escalate": true,
+      "to": "N2",
+      "reason": "Acceso remoto no autorizado de proveedor externo a servidor crítico WMS01 desde infraestructura de hosting extranjera sin cambio aprobado."
+    },
+    "open_questions": [
+      "¿Ha realizado el proveedor Logisoft alguna subcontratación o uso de VPNs comerciales/hosting que justifique estas conexiones desde Lituania, o se trata de un compromiso de credenciales?"
+    ],
+    "comprobaciones_internas": [
+      {
+        "regla": "Acceso de ext.logisoft en horario y solo a WMS01",
+        "sujeto": "ext.logisoft Sun 11/10 03:38",
+        "estado": "sospechosa",
+        "motivo": "Sun 11/10 03:38 fuera de la ventana L-V 8-18 h y desde un origen no habitual (77.90.185.20, LT)",
+        "evidencias": [
+          "FW-0026536",
+          "VPN-0010704"
+        ],
+        "dato_faltante": ""
+      },
+      {
+        "regla": "Acceso de ext.logisoft en horario y solo a WMS01",
+        "sujeto": "ext.logisoft Fri 09/10 18:06",
+        "estado": "sospechosa",
+        "motivo": "Fri 09/10 18:06 fuera de la ventana contractual L-V 8-18 h (origen habitual 198.18.240.10) sin cambio aprobado",
+        "evidencias": [
+          "VPN-0002415"
+        ],
+        "dato_faltante": ""
+      },
+      {
+        "regla": "Acceso de ext.logisoft en horario y solo a WMS01",
+        "sujeto": "ext.logisoft Tue 13/10 18:35",
+        "estado": "sospechosa",
+        "motivo": "Tue 13/10 18:35 fuera de la ventana contractual L-V 8-18 h (origen habitual 198.18.240.10) sin cambio aprobado",
+        "evidencias": [
+          "VPN-0003504"
+        ],
+        "dato_faltante": ""
+      },
+      {
+        "regla": "Acceso de ext.logisoft en horario y solo a WMS01",
+        "sujeto": "ext.logisoft Wed 14/10 01:35",
+        "estado": "sospechosa",
+        "motivo": "Wed 14/10 01:35 fuera de la ventana L-V 8-18 h y desde un origen no habitual (77.90.185.20, LT)",
+        "evidencias": [
+          "FW-0026537",
+          "VPN-0010706"
+        ],
+        "dato_faltante": ""
+      },
+      {
+        "regla": "Acceso de ext.logisoft en horario y solo a WMS01",
+        "sujeto": "ext.logisoft Fri 16/10 22:10",
+        "estado": "permitida",
+        "motivo": "Fri 16/10 22:10 fuera de horario pero cubierto por CHG-2026-1071 desde su IP habitual",
+        "evidencias": [
+          "CHG-2026-1071",
+          "VPN-0010716"
+        ],
+        "dato_faltante": ""
+      },
+      {
+        "regla": "Acceso de ext.logisoft en horario y solo a WMS01",
+        "sujeto": "ext.logisoft Sun 18/10 02:46",
+        "estado": "sospechosa",
+        "motivo": "Sun 18/10 02:46 fuera de la ventana L-V 8-18 h y desde un origen no habitual (77.90.185.20, LT)",
+        "evidencias": [
+          "FW-0026538",
+          "VPN-0010708"
+        ],
+        "dato_faltante": ""
+      }
+    ],
+    "ajustes_politica": [],
+    "executed_actions": [],
+    "triage_seconds": 21.3
+  },
+  "traza": [
+    {
+      "tool": "logs:vpn",
+      "args": {
+        "ruta": "/logs/vpn",
+        "q": "ext.logisoft",
+        "limit": 2000
+      },
+      "origen": "reglas",
+      "ms": 32,
+      "chars": 6909,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "ruta": "/logs/firewall",
+        "q": "10.99.60.10",
+        "desde": "2026-10-11T01:38:00Z",
+        "hasta": "2026-10-11T05:38:00Z",
+        "limit": 500
+      },
+      "origen": "reglas",
+      "ms": 4,
+      "chars": 337,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "cambios",
+      "args": {
+        "ruta": "/changes"
+      },
+      "origen": "reglas",
+      "ms": 1,
+      "chars": 3442,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "ruta": "/logs/firewall",
+        "q": "10.99.60.77",
+        "desde": "2026-10-09T16:06:00Z",
+        "hasta": "2026-10-09T20:06:00Z",
+        "limit": 500
+      },
+      "origen": "reglas",
+      "ms": 4,
+      "chars": 45,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "ruta": "/logs/firewall",
+        "q": "10.99.60.77",
+        "desde": "2026-10-13T16:35:00Z",
+        "hasta": "2026-10-13T20:35:00Z",
+        "limit": 500
+      },
+      "origen": "reglas",
+      "ms": 4,
+      "chars": 45,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "ruta": "/logs/firewall",
+        "q": "10.99.60.11",
+        "desde": "2026-10-13T23:35:00Z",
+        "hasta": "2026-10-14T03:35:00Z",
+        "limit": 500
+      },
+      "origen": "reglas",
+      "ms": 4,
+      "chars": 337,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "ruta": "/logs/firewall",
+        "q": "10.99.60.90",
+        "desde": "2026-10-16T20:10:00Z",
+        "hasta": "2026-10-17T00:10:00Z",
+        "limit": 500
+      },
+      "origen": "reglas",
+      "ms": 4,
+      "chars": 45,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "ruta": "/logs/firewall",
+        "q": "10.99.60.12",
+        "desde": "2026-10-18T00:46:00Z",
+        "hasta": "2026-10-18T04:46:00Z",
+        "limit": 500
+      },
+      "origen": "reglas",
+      "ms": 5,
+      "chars": 337,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "consultar_usuario",
+      "args": {
+        "upn_o_username": "ext.logisoft@tarvia.example"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 574,
+      "error": null,
+      "preview": "{\"user_id\": \"EXT001\", \"username\": \"ext.logisoft\", \"upn\": \"ext.logisoft@tarvia.example\", \"display_name\": \"Logisoft Solutions (proveedor WMS)\", \"department\": \"Logística\", \"title\": \"Cuenta de proveedor\", \"location\": \"Remoto\", \"manager_upn\": \"\", \"account_type\": \"external\", \"privileged\": \"False\", \"vip\": "
+    },
+    {
+      "tool": "consultar_inteligencia",
+      "args": {
+        "indicador": "77.90.185.20"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 261,
+      "error": null,
+      "preview": "{\"indicator\": \"77.90.185.20\", \"tip\": null, \"geo\": {\"ip\": \"77.90.185.20\", \"country\": \"LT\", \"city\": \"Vilna\", \"asn\": \"AS213790\", \"as_org\": \"Limited Network LTD\", \"is_tor\": \"False\", \"is_vpn_provider\": \"False\", \"is_hosting\": \"True\", \"is_residential_proxy\": \"False\"}}"
+    },
+    {
+      "tool": "consultar_inteligencia",
+      "args": {
+        "indicador": "198.18.240.10"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 265,
+      "error": null,
+      "preview": "{\"indicator\": \"198.18.240.10\", \"tip\": null, \"geo\": {\"ip\": \"198.18.240.10\", \"country\": \"ES\", \"city\": \"Sevilla\", \"asn\": \"AS3352\", \"as_org\": \"Telefónica de España\", \"is_tor\": \"False\", \"is_vpn_provider\": \"False\", \"is_hosting\": \"False\", \"is_residential_proxy\": \"False\"}}"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "vpn",
+        "texto": "VPN-0010704",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 9,
+      "chars": 275,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"VPN-0010704\", \"timestamp\": \"2026-10-11T01:38:00.000Z\", \"user\": \"ext.logisoft\", \"src_ip\": \"77.90.185.20\", \"assigned_ip\": \"10.99.60.10\", \"action\": \"connect\", \"country\": \"LT\", \"bytes\": 0, \"mfa_result\": \"approved (TOTP)\"}]}"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "firewall",
+        "texto": "FW-0026536",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 21,
+      "chars": 336,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"FW-0026536\", \"timestamp\": \"2026-10-11T01:39:00.000Z\", \"src_ip\": \"10.99.60.10\", \"src_port\": \"50658\", \"dst_ip\": \"10.40.2.10\", \"dst_port\": \"3389\", \"proto\": \"TCP\", \"action\": \"allow\", \"rule\": \"VPN-EXT-LOGISOFT\", \"bytes\": \"9000000\", \"zone_src\": \"VPN-"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "vpn",
+        "texto": "VPN-0002415",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 9,
+      "chars": 276,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"VPN-0002415\", \"timestamp\": \"2026-10-09T16:06:00.000Z\", \"user\": \"ext.logisoft\", \"src_ip\": \"198.18.240.10\", \"assigned_ip\": \"10.99.60.77\", \"action\": \"connect\", \"country\": \"ES\", \"bytes\": 0, \"mfa_result\": \"approved (TOTP)\"}]}"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "vpn",
+        "texto": "VPN-0003504",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 13,
+      "chars": 276,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"VPN-0003504\", \"timestamp\": \"2026-10-13T16:35:00.000Z\", \"user\": \"ext.logisoft\", \"src_ip\": \"198.18.240.10\", \"assigned_ip\": \"10.99.60.77\", \"action\": \"connect\", \"country\": \"ES\", \"bytes\": 0, \"mfa_result\": \"approved (TOTP)\"}]}"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "vpn",
+        "texto": "VPN-0010706",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 13,
+      "chars": 275,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"VPN-0010706\", \"timestamp\": \"2026-10-13T23:35:00.000Z\", \"user\": \"ext.logisoft\", \"src_ip\": \"77.90.185.20\", \"assigned_ip\": \"10.99.60.11\", \"action\": \"connect\", \"country\": \"LT\", \"bytes\": 0, \"mfa_result\": \"approved (TOTP)\"}]}"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "firewall",
+        "texto": "FW-0026537",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 34,
+      "chars": 336,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"FW-0026537\", \"timestamp\": \"2026-10-13T23:36:00.000Z\", \"src_ip\": \"10.99.60.11\", \"src_port\": \"50228\", \"dst_ip\": \"10.40.2.10\", \"dst_port\": \"3389\", \"proto\": \"TCP\", \"action\": \"allow\", \"rule\": \"VPN-EXT-LOGISOFT\", \"bytes\": \"5000000\", \"zone_src\": \"VPN-"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "vpn",
+        "texto": "VPN-0010716",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 16,
+      "chars": 276,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"VPN-0010716\", \"timestamp\": \"2026-10-16T20:10:00.000Z\", \"user\": \"ext.logisoft\", \"src_ip\": \"198.18.240.10\", \"assigned_ip\": \"10.99.60.90\", \"action\": \"connect\", \"country\": \"ES\", \"bytes\": 0, \"mfa_result\": \"approved (TOTP)\"}]}"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "vpn",
+        "texto": "VPN-0010708",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 17,
+      "chars": 275,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"VPN-0010708\", \"timestamp\": \"2026-10-18T00:46:00.000Z\", \"user\": \"ext.logisoft\", \"src_ip\": \"77.90.185.20\", \"assigned_ip\": \"10.99.60.12\", \"action\": \"connect\", \"country\": \"LT\", \"bytes\": 0, \"mfa_result\": \"approved (TOTP)\"}]}"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "firewall",
+        "texto": "FW-0026538",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 41,
+      "chars": 336,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"FW-0026538\", \"timestamp\": \"2026-10-18T00:47:00.000Z\", \"src_ip\": \"10.99.60.12\", \"src_port\": \"52151\", \"dst_ip\": \"10.40.2.10\", \"dst_port\": \"3389\", \"proto\": \"TCP\", \"action\": \"allow\", \"rule\": \"VPN-EXT-LOGISOFT\", \"bytes\": \"4000000\", \"zone_src\": \"VPN-"
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "ext.logisoft@tarvia.example",
+        "desde": "2026-10-10T01:40:22Z",
+        "hasta": "2026-10-12T01:40:22Z"
+      },
+      "origen": "auto",
+      "ms": 10,
+      "chars": 431,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 1, \"items\": [{\"alert_id\": \"ALR-20261011-011877\", \"created_at\": \"2026-10-11T01:40:22.000Z\", \"rule_id\": \"UC-VPN-001\", \"rule_name\": \"Acceso VPN de proveedor fuera de horario o desde origen nuevo\", \"severity\": \"low\", \"entities\": {\"users\": [{\"upn\": \"ext.logisoft@tarvia.example\", \""
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "77.90.185.20",
+        "desde": "2026-10-10T01:40:22Z",
+        "hasta": "2026-10-12T01:40:22Z"
+      },
+      "origen": "auto",
+      "ms": 10,
+      "chars": 431,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 1, \"items\": [{\"alert_id\": \"ALR-20261011-011877\", \"created_at\": \"2026-10-11T01:40:22.000Z\", \"rule_id\": \"UC-VPN-001\", \"rule_name\": \"Acceso VPN de proveedor fuera de horario o desde origen nuevo\", \"severity\": \"low\", \"entities\": {\"users\": [{\"upn\": \"ext.logisoft@tarvia.example\", \""
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "198.18.240.10",
+        "desde": "2026-10-10T01:40:22Z",
+        "hasta": "2026-10-12T01:40:22Z"
+      },
+      "origen": "auto",
+      "ms": 12,
+      "chars": 39,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 0, \"items\": []}"
+    },
+    {
+      "tool": "buscar_cambios",
+      "args": {
+        "texto": "ext.logisoft"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 274,
+      "error": null,
+      "preview": "[{\"id\": \"CHG-2026-1071\", \"titulo\": \"Actualización del WMS por el proveedor Logisoft\", \"inicio\": \"2026-10-16 21:00\", \"fin\": \"2026-10-16 23:59\", \"solicitante\": \"Logística\", \"detalle\": \"Acceso VPN de ext.logisoft fuera de horario, desde su IP corporativa\", \"alcance\": \"WMS01\"}]"
+    },
+    {
+      "tool": "consultar_activo",
+      "args": {
+        "hostname_o_ip": "WMS01"
+      },
+      "origen": "agente",
+      "ms": 2,
+      "chars": 363,
+      "error": null,
+      "preview": "{\"asset_id\": \"A01177\", \"hostname\": \"WMS01\", \"ip\": \"10.40.2.10\", \"type\": \"Servidor de aplicaciones\", \"os\": \"Windows Server 2019\", \"criticality\": \"Alta\", \"zone\": \"LOGISTICS-IT\", \"location\": \"Martorell CL\", \"business_service\": \"Gestión de almacén (WMS)\", \"owner_upn\": \"\", \"internet_facing\": \"False\", \"ed"
+    }
+  ],
+  "razonamiento": [],
+  "uso": {
+    "input_tokens": 24062,
+    "output_tokens": 1013,
+    "llamadas_modelo": 2
+  },
+  "modelo": "gemini/gemini-flash-lite-latest",
+  "triado_en": "2026-11-07T19:29:43.284479+00:00",
+  "firma": null,
+  "heredado_de": null,
+  "entrada_severidad": {
+    "activo_mas_critico": "WMS01",
+    "criticidad": "Alta",
+    "ajuste": "+1",
+    "motivo_ajuste": "Acceso interactivo RDP confirmado desde origen de hosting no autorizado hacia servidor crítico WMS01.",
+    "patron_generalizable": false
+  }
+}

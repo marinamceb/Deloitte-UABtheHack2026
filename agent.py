@@ -3,10 +3,13 @@
 Ejemplos:
   python agent.py ALR-20261005-000301            # tría una o varias alertas por ID (vía API simulada)
   python agent.py --muestra 5                    # tría las 5 primeras de la muestra de desarrollo
-  python agent.py --cola 10                      # tría las 10 primeras de la cola de la API
+  python agent.py --cola 10                      # tría las 10 más prioritarias de la cola (severidad estimada y SLA)
+  python agent.py --ver-cola 20                  # muestra la cola priorizada sin llamar al modelo
   python agent.py --muestra 3 --aprobar          # además, pide aprobación humana para la contención propuesta
   python agent.py --listar-modelos               # modelos disponibles en el proveedor configurado
   python agent.py --listar-incidentes            # alertas agrupadas en incidentes candidatos (sin LLM)
+  python agent.py --construir-indice             # descarga los logs por la API a salidas/indice_logs.sqlite
+  python agent.py --estado-indice                # resumen del índice local de logs
 
 Proveedor: TRIAJE_PROVEEDOR=gemini (por defecto, necesita GEMINI_API_KEY) | groq | openrouter | ollama | anthropic.
 Modelo: TRIAJE_MODELO (por defecto gemini-3.5-flash con Gemini, claude-opus-5-5 con Anthropic).
@@ -19,7 +22,8 @@ import time
 from agente.herramientas import _get
 from agente.prompts import DATASET
 from agente.motores import CuotaAgotada
-from agente.triaje import cubierta_por, triar
+from agente import cola
+from agente.triaje import SALIDAS, cubierta_por, triar
 
 MUESTRA = DATASET / "03_alertas" / "alertas_muestra_desarrollo.jsonl"
 ETIQUETA_TIPO = {"regla_interna": "regla interna", "cambio": "cambio", "rrhh": "RRHH", "linea_base": "línea base"}
@@ -37,16 +41,55 @@ def cargar_alertas(args) -> list[dict]:
         with open(MUESTRA, encoding="utf-8") as f:
             alertas += [json.loads(l) for l in f if l.strip()][args.desde:args.desde + args.muestra]
     if args.cola:
-        cola, _, _ = _get("/alerts", {"status": "new", "limit": args.cola, "offset": args.desde})
-        alertas += cola["items"]
+        alertas += [x["alerta"] for x in cola_priorizada()[args.desde:args.desde + args.cola]]
+    elif args.priorizar and len(alertas) > 1:
+        alertas = [x["alerta"] for x in cola.priorizar(alertas)]
     return alertas
+
+
+def cola_priorizada() -> list[dict]:
+    """[Nivel 1] Todas las alertas nuevas ordenadas por prioridad, sin las que ya están en un ticket."""
+    from agente import incidentes
+    return cola.priorizar(list(incidentes.todas_las_alertas().values()), cola.ya_en_ticket(SALIDAS / "tickets"))
+
+
+def ver_cola(n: int) -> None:
+    entradas = cola_priorizada()
+    print(f"Cola priorizada: {len(entradas)} puestos (incidentes y alertas sueltas) sin ticket. Los {n} primeros:\n")
+    print(f"{'#':>3} {'sev. estimada':13} {'vence (SLA)':17} {'alerta a triar':20} {'n':>3} {'regla':11} "
+          "activo más crítico")
+    for i, x in enumerate(entradas[:n], 1):
+        a = x["alerta"]
+        print(f"{i:3} {x['severidad']:13} {x['vence']:%d/%m %H:%M} UTC  {a['alert_id']:20} {len(x['alert_ids']):3} "
+              f"{a['rule_id']:11} {x['activo']} ({x['criticidad']})"
+              + ("  [ruido]" if x["ruido"] else "") + ("  [autorizada]" if x["autorizada"] else ""))
+
+
+def indice_cli(fuentes: str | None) -> None:
+    """[Nivel 3 · infraestructura] Construye (vía API) o resume el índice local de logs."""
+    from agente import indice
+    if fuentes:
+        lista = None if fuentes == "todas" else fuentes.split(",")
+        print(f"Descargando {'todas las fuentes' if lista is None else ', '.join(lista)} por la API...")
+        t0 = time.time()
+        indice.construir(lista)
+        print(f"Índice construido en {time.time() - t0:.0f} s.\n")
+    e = indice.estado()
+    if e is None:
+        print("No hay índice. Créalo con: python agent.py --construir-indice")
+        return
+    print(f"{e['ruta']} · {e['mb']} MB · {e['eventos']} eventos · construido {e['construido']} desde {e['api_url']}")
+    for f, x in e["fuentes"].items():
+        print(f"  {f:13} {x['eventos']:>7}  {x['primero'][:16]} → {x['ultimo'][:16]}")
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("alert_ids", nargs="*")
     p.add_argument("--muestra", type=int, default=0, help="N alertas de alertas_muestra_desarrollo.jsonl")
-    p.add_argument("--cola", type=int, default=0, help="N alertas de la cola de la API")
+    p.add_argument("--cola", type=int, default=0, help="las N alertas más prioritarias de la cola")
+    p.add_argument("--ver-cola", type=int, default=0, metavar="N", help="muestra la cola priorizada y sale (sin LLM)")
+    p.add_argument("--priorizar", action="store_true", help="ordena por prioridad el lote de --muestra o de IDs")
     p.add_argument("--desde", type=int, default=0, help="desplazamiento dentro de la muestra o la cola")
     p.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
     p.add_argument("--aprobar", action="store_true", help="revisar y ejecutar la contención propuesta (humano)")
@@ -57,12 +100,22 @@ def main():
     p.add_argument("--listar-incidentes", action="store_true",
                    help="muestra los incidentes candidatos (alertas agrupadas por entidades) y sale")
     p.add_argument("--listar-modelos", action="store_true", help="lista los modelos del proveedor y sale")
+    p.add_argument("--construir-indice", nargs="?", const="todas", metavar="FUENTES",
+                   help="descarga los logs por la API e indexa sus entidades (todas o 'proxy,dns,...') y sale")
+    p.add_argument("--estado-indice", action="store_true", help="muestra el estado del índice local de logs y sale")
     p.add_argument("--aprobador", default="analista.n1", help="nombre que queda registrado en las aprobaciones")
     args = p.parse_args()
 
     if args.listar_modelos:
         from agente import motores
         print("\n".join(motores.listar_modelos()))
+        return
+
+    if args.construir_indice or args.estado_indice:
+        return indice_cli(args.construir_indice)
+
+    if args.ver_cola:
+        ver_cola(args.ver_cola)
         return
 
     if args.listar_incidentes:

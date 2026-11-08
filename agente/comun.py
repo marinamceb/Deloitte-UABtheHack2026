@@ -53,7 +53,8 @@ def _csv(nombre: str) -> list[dict]:
 
 ACTIVOS = {r["hostname"].upper(): r for r in _csv("activos.csv")}          # hostname (mayúsculas) → fila
 IP_A_HOST = {a["ip"]: h for h, a in ACTIVOS.items()}
-USUARIOS = {r["username"].lower() for r in _csv("usuarios.csv")}
+FICHAS_USUARIO = {r["upn"].lower(): r for r in _csv("usuarios.csv")}           # UPN → fila del directorio
+USUARIOS = {r["username"].lower() for r in FICHAS_USUARIO.values()}
 ZONAS = {r["zona"]: ipaddress.ip_network(r["cidr"]) for r in _csv("zonas_red.csv")}
 SERVICIOS = _csv("servicios_negocio.csv")
 _RFC1918 = [ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")]

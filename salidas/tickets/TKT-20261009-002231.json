@@ -1,0 +1,181 @@
+{
+  "alerta": {
+    "alert_id": "ALR-20261009-002231",
+    "created_at": "2026-10-09T10:12:52.057Z",
+    "source_product": "NGFW",
+    "rule_id": "UC-OT-001",
+    "rule_name": "Conexión a red OT desde origen no autorizado",
+    "severity": "high",
+    "status": "new",
+    "mitre": {
+      "tactic": "Lateral Movement",
+      "technique_id": "T0886",
+      "technique": "Remote Services (ICS)"
+    },
+    "description": "Tráfico hacia la zona LOGISTICS-OT desde un origen distinto de ENG-WS01 o WMS01.",
+    "entities": {
+      "hosts": [
+        {
+          "hostname": "ENG-WS01",
+          "ip": "10.40.2.20"
+        }
+      ]
+    },
+    "evidence": {
+      "src": "ENG-WS01",
+      "dst_zone": "LOGISTICS-OT",
+      "ports": [
+        44818
+      ]
+    },
+    "related_events": [
+      "FW-0004862"
+    ],
+    "runbook": "RB-08"
+  },
+  "ticket": {
+    "ticket_id": "TKT-20261009-002231",
+    "alert_ids": [
+      "ALR-20261009-002231"
+    ],
+    "title": "Falso positivo: Conexión OT desde origen autorizado ENG-WS01",
+    "verdict": "false_positive",
+    "confidence": 1.0,
+    "severity": "informational",
+    "severity_rationale": "Regla high × ENG-WS01 (Alta) = high; falso positivo → informational",
+    "affected": {
+      "users": [],
+      "hosts": [
+        "ENG-WS01"
+      ],
+      "business_services": [
+        "Ingeniería de automatización"
+      ],
+      "customers": []
+    },
+    "summary": "La alerta UC-OT-001 se ha disparado por tráfico desde ENG-WS01 hacia la red OT. Sin embargo, ENG-WS01 es una estación de ingeniería autorizada por la política de seguridad y cuenta con la regla de firewall legítima OT-ENG-ALLOW. Se trata de un falso positivo.",
+    "evidence": [
+      {
+        "source": "firewall",
+        "event_id": "FW-0004862",
+        "finding": "Tráfico legítimo permitido desde ENG-WS01 hacia la zona LOGISTICS-OT mediante la regla OT-ENG-ALLOW."
+      }
+    ],
+    "enrichment": [],
+    "mitre": [
+      "T0886"
+    ],
+    "recommended_actions": [
+      {
+        "action": "close",
+        "target": "ALR-20261009-002231",
+        "requires_approval": false,
+        "justification": "Cierre de la alerta por falso positivo en origen autorizado."
+      }
+    ],
+    "escalation": {
+      "escalate": false,
+      "to": "",
+      "reason": ""
+    },
+    "open_questions": [],
+    "comprobaciones_internas": [
+      {
+        "regla": "Acceso a OT solo desde ENG-WS01/WMS01",
+        "sujeto": "ENG-WS01",
+        "estado": "permitida",
+        "motivo": "ENG-WS01 es un origen autorizado para OT",
+        "evidencias": [
+          "FW-0004862"
+        ],
+        "dato_faltante": ""
+      }
+    ],
+    "ajustes_politica": [],
+    "executed_actions": [],
+    "triage_seconds": 12.5
+  },
+  "traza": [
+    {
+      "tool": "logs:firewall",
+      "args": {
+        "ruta": "/logs/firewall",
+        "q": "10.40.2.20",
+        "desde": "2026-10-09T09:12:52Z",
+        "hasta": "2026-10-09T11:12:52Z",
+        "limit": 500
+      },
+      "origen": "reglas",
+      "ms": 4,
+      "chars": 630,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "consultar_activo",
+      "args": {
+        "hostname_o_ip": "ENG-WS01"
+      },
+      "origen": "auto",
+      "ms": 2,
+      "chars": 364,
+      "error": null,
+      "preview": "{\"asset_id\": \"A01178\", \"hostname\": \"ENG-WS01\", \"ip\": \"10.40.2.20\", \"type\": \"Estación de ingeniería\", \"os\": \"Windows 10 LTSC\", \"criticality\": \"Alta\", \"zone\": \"LOGISTICS-IT\", \"location\": \"Martorell CL\", \"business_service\": \"Ingeniería de automatización\", \"owner_upn\": \"\", \"internet_facing\": \"False\", \"e"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "firewall",
+        "texto": "FW-0004862",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 19,
+      "chars": 335,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"FW-0004862\", \"timestamp\": \"2026-10-09T10:08:58.057Z\", \"src_ip\": \"10.40.2.20\", \"src_port\": \"51371\", \"dst_ip\": \"10.40.16.22\", \"dst_port\": \"44818\", \"proto\": \"TCP\", \"action\": \"allow\", \"rule\": \"OT-ENG-ALLOW\", \"bytes\": \"33440\", \"zone_src\": \"LOGISTICS"
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "ENG-WS01",
+        "desde": "2026-10-08T10:12:52Z",
+        "hasta": "2026-10-10T10:12:52Z"
+      },
+      "origen": "auto",
+      "ms": 15,
+      "chars": 326,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 1, \"items\": [{\"alert_id\": \"ALR-20261009-002231\", \"created_at\": \"2026-10-09T10:12:52.057Z\", \"rule_id\": \"UC-OT-001\", \"rule_name\": \"Conexión a red OT desde origen no autorizado\", \"severity\": \"high\", \"entities\": {\"hosts\": [{\"hostname\": \"ENG-WS01\", \"ip\": \"10.40.2.20\"}]}, \"related_"
+    },
+    {
+      "tool": "buscar_cambios",
+      "args": {
+        "texto": "ENG-WS01"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 2,
+      "error": null,
+      "preview": "[]"
+    }
+  ],
+  "razonamiento": [],
+  "uso": {
+    "input_tokens": 6708,
+    "output_tokens": 399,
+    "llamadas_modelo": 1
+  },
+  "modelo": "gemini/gemini-flash-lite-latest",
+  "triado_en": "2026-11-07T19:39:50.336522+00:00",
+  "firma": null,
+  "heredado_de": null,
+  "entrada_severidad": {
+    "activo_mas_critico": "ENG-WS01",
+    "criticidad": "Alta",
+    "ajuste": "-1",
+    "motivo_ajuste": "La regla UC-OT-001 genera falsos positivos sobre el origen autorizado ENG-WS01.",
+    "patron_generalizable": true
+  }
+}

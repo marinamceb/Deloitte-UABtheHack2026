@@ -53,42 +53,57 @@ def calcular_severidad(severidad_regla: str, t: dict) -> tuple[str, str]:
 def _bloqueada(alerta: dict) -> bool:
     ev = alerta.get("evidence", {})
     acciones = {str(ev.get(k, "")).lower() for k in ("action", "edr_action", "dlp_action")}
-    return bool(acciones & ACCIONES_BLOQUEO) or ev.get("executed") is False
+    # «Bloqueado antes de producir efecto»: acción de bloqueo, no ejecutado, o ataque de credenciales sin ningún éxito
+    return bool(acciones & ACCIONES_BLOQUEO) or ev.get("executed") is False or ev.get("success_count") == 0
+
+
+def candidatos_criticidad(hosts, servicios, buckets, usuarios, activo_de, usuario_de):
+    """Criticidades de lo afectado y las identidades VIP/privilegiadas. `activo_de` y `usuario_de` dicen de dónde
+    leer la ficha: la API tras el triaje (revisar) o el inventario local para la cola (cola.py).
+    Devuelve ([(criticidad, objeto, fuente)], [identidades VIP o privilegiadas])."""
+    candidatos, privilegiados = [], []
+
+    def por_servicio(nombre, etiqueta=None):
+        s = _servicio(nombre)
+        if s and s["criticidad"] in ORDEN:
+            candidatos.append((s["criticidad"], etiqueta or s["servicio"], "servicios_negocio"))
+
+    for host in hosts:
+        activo = activo_de(host)
+        if activo and activo.get("criticality") in ORDEN:
+            candidatos.append((activo["criticality"], host, "CMDB"))
+            por_servicio(activo.get("business_service", ""))
+    for nombre in servicios:
+        por_servicio(nombre)
+    for bucket in buckets:
+        s = _servicio(bucket)
+        por_servicio(bucket, f"s3://{bucket} ({s['servicio']})" if s else None)
+    for upn in usuarios:
+        u = usuario_de(upn)
+        if u:
+            candidatos.append(("Media", upn, "identidad"))
+            if u.get("privileged") == "True" or u.get("vip") == "True":
+                privilegiados.append(f"{upn} ({'VIP' if u.get('vip') == 'True' else 'privilegiada'})")
+    return candidatos, privilegiados
+
+
+def _buckets(alertas: list[dict]) -> list[str]:
+    nubes = (a.get("entities", {}).get("cloud") for a in alertas)
+    return [n["bucket"] for n in nubes if isinstance(n, dict) and n.get("bucket")]
 
 
 def revisar(t: dict, alertas: list[dict]) -> tuple[dict, list[str]]:
     """Devuelve la salida del modelo con criticidad/ajuste corregidos y las notas de lo que se cambió."""
     notas: list[str] = []
-    candidatos: list[tuple[str, str, str]] = []  # (criticidad, objeto, fuente)
     e = fusionar(alertas) if alertas else {"hosts": [], "users": [], "cloud": {}}
     with h.origen("politica"):
-        hosts = list(dict.fromkeys(t["affected"].get("hosts", []) + e["hosts"]))
-        for host in hosts:
-            activo, _ = h.consultar_api("activo", f"/assets/{host}")
-            if activo and activo.get("criticality") in ORDEN:
-                candidatos.append((activo["criticality"], host, "CMDB"))
-                s = _servicio(activo.get("business_service", ""))
-                if s and s["criticidad"] in ORDEN:
-                    candidatos.append((s["criticidad"], s["servicio"], "servicios_negocio"))
-        for nombre in t["affected"].get("business_services", []):
-            s = _servicio(nombre)
-            if s and s["criticidad"] in ORDEN:
-                candidatos.append((s["criticidad"], s["servicio"], "servicios_negocio"))
-        for a in alertas:
-            nube = a.get("entities", {}).get("cloud")
-            if isinstance(nube, dict) and nube.get("bucket"):
-                s = _servicio(nube["bucket"])
-                if s and s["criticidad"] in ORDEN:
-                    candidatos.append((s["criticidad"], f"s3://{nube['bucket']} ({s['servicio']})", "servicios_negocio"))
-
-        usuarios = list(dict.fromkeys(t["affected"].get("users", []) + e["users"]))
-        privilegiados = []
-        for upn in usuarios:
-            u, _ = h.consultar_api("usuario", f"/users/{upn}")
-            if u:
-                candidatos.append(("Media", upn, "identidad"))
-                if u.get("privileged") == "True" or u.get("vip") == "True":
-                    privilegiados.append(f"{upn} ({'VIP' if u.get('vip') == 'True' else 'privilegiada'})")
+        candidatos, privilegiados = candidatos_criticidad(
+            hosts=list(dict.fromkeys(t["affected"].get("hosts", []) + e["hosts"])),
+            servicios=t["affected"].get("business_services", []),
+            buckets=_buckets(alertas),
+            usuarios=list(dict.fromkeys(t["affected"].get("users", []) + e["users"])),
+            activo_de=lambda x: h.consultar_api("activo", f"/assets/{x}")[0],
+            usuario_de=lambda x: h.consultar_api("usuario", f"/users/{x}")[0])
 
     t = dict(t)
     if candidatos:

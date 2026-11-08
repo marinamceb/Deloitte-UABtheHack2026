@@ -1,0 +1,439 @@
+{
+  "alerta": {
+    "alert_id": "ALR-20261012-011829",
+    "created_at": "2026-10-12T14:11:59.000Z",
+    "source_product": "EDR",
+    "rule_id": "UC-EDR-005",
+    "rule_name": "Herramienta de acceso remoto no autorizada",
+    "severity": "medium",
+    "status": "new",
+    "mitre": {
+      "tactic": "Command and Control",
+      "technique_id": "T1219",
+      "technique": "Remote Access Software"
+    },
+    "description": "Ejecución de AnyDesk, TeamViewer personal u otras RMM no aprobadas.",
+    "entities": {
+      "users": [
+        {
+          "upn": "andrea.molina2@tarvia.example",
+          "display_name": "Andrea Molina"
+        }
+      ],
+      "hosts": [
+        {
+          "hostname": "LT-T07-02",
+          "ip": "10.30.7.21"
+        }
+      ],
+      "files": [
+        {
+          "name": "AnyDesk.exe",
+          "sha256": "a6a536a710731876ce49160473bc55b5a4143dd66a0695acd3cf9e8c716af333"
+        }
+      ],
+      "ips": [
+        "198.51.100.210"
+      ]
+    },
+    "evidence": {
+      "tool": "AnyDesk (firmado, legítimo)",
+      "approved_rmm": "Solo TeamViewer Corporate gestionado por IT",
+      "session_direction": "entrante, con control remoto",
+      "remote_country": "MA",
+      "it_ticket": "ninguno",
+      "downloaded_from": "download.anydesk.com 3 min antes",
+      "child_processes": "powershell recorriendo \\\\FS01\\Tiendas"
+    },
+    "related_events": [
+      "PRX-0212611",
+      "EDR-0123426",
+      "EDR-0123427",
+      "EDR-0123428"
+    ],
+    "runbook": "RB-02"
+  },
+  "ticket": {
+    "ticket_id": "TKT-20261012-011829",
+    "alert_ids": [
+      "ALR-20261012-011829"
+    ],
+    "title": "Acceso remoto no autorizado con AnyDesk y PowerShell en LT-T07-02",
+    "verdict": "true_positive",
+    "confidence": 1.0,
+    "severity": "high",
+    "severity_rationale": "Regla medium × LT-T07-02 (Media) = medium; +1 (Ejecución confirmada de AnyDesk con sesión remota activa y actividad posterior no autorizada.) → high",
+    "affected": {
+      "users": [
+        "andrea.molina2@tarvia.example"
+      ],
+      "hosts": [
+        "LT-T07-02"
+      ],
+      "business_services": [
+        "Operación de tienda"
+      ],
+      "customers": []
+    },
+    "summary": "Se detectó la descarga y ejecución de AnyDesk en el portátil LT-T07-02, seguido de una conexión remota entrante desde un proxy residencial en Marruecos y comandos de PowerShell explorando recursos compartidos de tiendas. Al no estar autorizado AnyDesk, se clasifica como true_positive y se escala a N2.",
+    "evidence": [
+      {
+        "source": "proxy",
+        "event_id": "PRX-0212611",
+        "finding": "Descarga de AnyDesk.exe desde la web oficial."
+      },
+      {
+        "source": "edr_events",
+        "event_id": "EDR-0123426",
+        "finding": "Ejecución de AnyDesk.exe en LT-T07-02."
+      },
+      {
+        "source": "edr_events",
+        "event_id": "EDR-0123427",
+        "finding": "Conexión remota entrante desde IP externa (198.51.100.210)."
+      },
+      {
+        "source": "edr_events",
+        "event_id": "EDR-0123428",
+        "finding": "PowerShell ejecutado por AnyDesk recorriendo \\\\FS01\\Tiendas\\Cierres."
+      }
+    ],
+    "enrichment": [
+      {
+        "indicator": "198.51.100.210",
+        "type": "ip",
+        "source": "geoip_asn",
+        "result": "Casablanca, MA (Residential Proxy)"
+      },
+      {
+        "indicator": "a6a536a710731876ce49160473bc55b5a4143dd66a0695acd3cf9e8c716af333",
+        "type": "sha256",
+        "source": "sandbox",
+        "result": "Binario firmado AnyDesk (legítimo pero no autorizado)"
+      }
+    ],
+    "mitre": [
+      "T1219"
+    ],
+    "recommended_actions": [
+      {
+        "action": "isolate_host",
+        "target": "LT-T07-02",
+        "requires_approval": true,
+        "justification": "Contener el equipo comprometido por acceso remoto no autorizado.",
+        "approvers": "N2"
+      },
+      {
+        "action": "block_ioc",
+        "target": "198.51.100.210",
+        "requires_approval": false,
+        "justification": "Bloquear IP de origen del acceso remoto no autorizado."
+      },
+      {
+        "action": "escalate_n2",
+        "target": "N2",
+        "requires_approval": false,
+        "justification": "Escalar incidente True Positive de acceso remoto no autorizado."
+      },
+      {
+        "action": "notify",
+        "target": "Responsable SOC",
+        "requires_approval": false,
+        "approvers": "",
+        "justification": "SLA de severidad high (apartado 3)"
+      }
+    ],
+    "escalation": {
+      "escalate": true,
+      "to": "N2",
+      "reason": "True Positive de acceso remoto no autorizado con ejecución de PowerShell y exploración de recursos compartidos."
+    },
+    "open_questions": [],
+    "comprobaciones_internas": [
+      {
+        "regla": "Herramienta de acceso remoto aprobada",
+        "sujeto": "LT-T07-02, andrea.molina2",
+        "estado": "sospechosa",
+        "motivo": "uso de AnyDesk, que no está aprobado (solo TeamViewer Corporate gestionado por IT)",
+        "evidencias": [
+          "EDR-0123426",
+          "EDR-0123427",
+          "PRX-0212611"
+        ],
+        "dato_faltante": ""
+      }
+    ],
+    "ajustes_politica": [
+      "isolate_host LT-T07-02: requiere aprobación de N2",
+      "Añadida notificación a Responsable SOC (SLA high, apartado 3)"
+    ],
+    "executed_actions": [],
+    "triage_seconds": 11.1
+  },
+  "traza": [
+    {
+      "tool": "logs:edr_events",
+      "args": {
+        "ruta": "/logs/edr_events",
+        "q": "LT-T07-02",
+        "desde": "2026-10-11T14:11:59Z",
+        "hasta": "2026-10-13T14:11:59Z",
+        "limit": 500
+      },
+      "origen": "reglas",
+      "ms": 62,
+      "chars": 6456,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:proxy",
+      "args": {
+        "ruta": "/logs/proxy",
+        "q": "LT-T07-02",
+        "desde": "2026-10-11T14:11:59Z",
+        "hasta": "2026-10-13T14:11:59Z",
+        "limit": 500
+      },
+      "origen": "reglas",
+      "ms": 107,
+      "chars": 4160,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:dns",
+      "args": {
+        "ruta": "/logs/dns",
+        "q": "LT-T07-02",
+        "desde": "2026-10-11T14:11:59Z",
+        "hasta": "2026-10-13T14:11:59Z",
+        "limit": 500
+      },
+      "origen": "reglas",
+      "ms": 63,
+      "chars": 1502,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:proxy",
+      "args": {
+        "ruta": "/logs/proxy",
+        "q": "andrea.molina2",
+        "desde": "2026-10-11T14:11:59Z",
+        "hasta": "2026-10-13T14:11:59Z",
+        "limit": 500
+      },
+      "origen": "reglas",
+      "ms": 106,
+      "chars": 4160,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "logs:dns",
+      "args": {
+        "ruta": "/logs/dns",
+        "q": "andrea.molina2",
+        "desde": "2026-10-11T14:11:59Z",
+        "hasta": "2026-10-13T14:11:59Z",
+        "limit": 500
+      },
+      "origen": "reglas",
+      "ms": 62,
+      "chars": 45,
+      "error": null,
+      "preview": ""
+    },
+    {
+      "tool": "consultar_activo",
+      "args": {
+        "hostname_o_ip": "LT-T07-02"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 384,
+      "error": null,
+      "preview": "{\"asset_id\": \"A01048\", \"hostname\": \"LT-T07-02\", \"ip\": \"10.30.7.21\", \"type\": \"Portátil\", \"os\": \"Windows 11 23H2\", \"criticality\": \"Media\", \"zone\": \"STORES\", \"location\": \"Tienda 07 Lleida Rambla Ferran\", \"business_service\": \"Operación de tienda\", \"owner_upn\": \"andrea.molina2@tarvia.example\", \"internet_"
+    },
+    {
+      "tool": "consultar_usuario",
+      "args": {
+        "upn_o_username": "andrea.molina2@tarvia.example"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 453,
+      "error": null,
+      "preview": "{\"user_id\": \"U2078\", \"username\": \"andrea.molina2\", \"upn\": \"andrea.molina2@tarvia.example\", \"display_name\": \"Andrea Molina\", \"department\": \"Tiendas\", \"title\": \"Dependienta\", \"location\": \"Tienda 07 Lleida Rambla Ferran\", \"manager_upn\": \"marina.esteve@tarvia.example\", \"account_type\": \"user\", \"privilege"
+    },
+    {
+      "tool": "consultar_inteligencia",
+      "args": {
+        "indicador": "198.51.100.210"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 276,
+      "error": null,
+      "preview": "{\"indicator\": \"198.51.100.210\", \"tip\": null, \"geo\": {\"ip\": \"198.51.100.210\", \"country\": \"MA\", \"city\": \"Casablanca\", \"asn\": \"AS64609\", \"as_org\": \"Proveedor móvil (simulado)\", \"is_tor\": \"False\", \"is_vpn_provider\": \"False\", \"is_hosting\": \"False\", \"is_residential_proxy\": \"True\"}}"
+    },
+    {
+      "tool": "consultar_inteligencia",
+      "args": {
+        "indicador": "a6a536a710731876ce49160473bc55b5a4143dd66a0695acd3cf9e8c716af333"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 107,
+      "error": null,
+      "preview": "{\"indicator\": \"a6a536a710731876ce49160473bc55b5a4143dd66a0695acd3cf9e8c716af333\", \"tip\": null, \"geo\": null}"
+    },
+    {
+      "tool": "consultar_sandbox",
+      "args": {
+        "sha256": "a6a536a710731876ce49160473bc55b5a4143dd66a0695acd3cf9e8c716af333"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 554,
+      "error": null,
+      "preview": "{\"sha256\": \"a6a536a710731876ce49160473bc55b5a4143dd66a0695acd3cf9e8c716af333\", \"md5\": \"5b9b0416a184e2e4d3ad3cd88279dc7e\", \"file_name\": \"AnyDesk.exe\", \"verdict\": \"clean\", \"score\": 3, \"malware_family\": \"\", \"behaviors\": [\"Binario firmado por AnyDesk Software GmbH\", \"Herramienta de acceso remoto legítim"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "proxy",
+        "texto": "PRX-0212611",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 292,
+      "chars": 581,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"PRX-0212611\", \"timestamp\": \"2026-10-12T14:02:00.000Z\", \"src_ip\": \"10.30.7.21\", \"hostname\": \"LT-T07-02\", \"user\": \"andrea.molina2\", \"method\": \"GET\", \"url\": \"https://download.anydesk.com/AnyDesk.exe\", \"domain\": \"download.anydesk.com\", \"dst_ip\": \"1"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "edr_events",
+        "texto": "EDR-0123426",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 147,
+      "chars": 550,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"EDR-0123426\", \"timestamp\": \"2026-10-12T14:05:00.000Z\", \"event_type\": \"process_start\", \"hostname\": \"LT-T07-02\", \"user\": \"TARVIA\\\\andrea.molina2\", \"process_name\": \"AnyDesk.exe\", \"process_path\": \"C:\\\\Users\\\\andrea.molina\\\\Downloads\\\\AnyDesk.exe\", "
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "edr_events",
+        "texto": "EDR-0123427",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 148,
+      "chars": 651,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"EDR-0123427\", \"timestamp\": \"2026-10-12T14:07:00.000Z\", \"event_type\": \"network_connect\", \"hostname\": \"LT-T07-02\", \"user\": \"TARVIA\\\\andrea.molina2\", \"process_name\": \"AnyDesk.exe\", \"process_path\": \"C:\\\\Users\\\\andrea.molina\\\\Downloads\\\\AnyDesk.exe\""
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "edr_events",
+        "texto": "EDR-0123428",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 158,
+      "chars": 614,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": true, \"items\": [{\"event_id\": \"EDR-0123428\", \"timestamp\": \"2026-10-12T14:14:00.000Z\", \"event_type\": \"process_start\", \"hostname\": \"LT-T07-02\", \"user\": \"TARVIA\\\\andrea.molina2\", \"process_name\": \"powershell.exe\", \"process_path\": \"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\"
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "LT-T07-02",
+        "desde": "2026-10-11T14:11:59Z",
+        "hasta": "2026-10-13T14:11:59Z"
+      },
+      "origen": "auto",
+      "ms": 15,
+      "chars": 601,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 1, \"items\": [{\"alert_id\": \"ALR-20261012-011829\", \"created_at\": \"2026-10-12T14:11:59.000Z\", \"rule_id\": \"UC-EDR-005\", \"rule_name\": \"Herramienta de acceso remoto no autorizada\", \"severity\": \"medium\", \"entities\": {\"users\": [{\"upn\": \"andrea.molina2@tarvia.example\", \"display_name\":"
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "andrea.molina2@tarvia.example",
+        "desde": "2026-10-11T14:11:59Z",
+        "hasta": "2026-10-13T14:11:59Z"
+      },
+      "origen": "auto",
+      "ms": 15,
+      "chars": 601,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 1, \"items\": [{\"alert_id\": \"ALR-20261012-011829\", \"created_at\": \"2026-10-12T14:11:59.000Z\", \"rule_id\": \"UC-EDR-005\", \"rule_name\": \"Herramienta de acceso remoto no autorizada\", \"severity\": \"medium\", \"entities\": {\"users\": [{\"upn\": \"andrea.molina2@tarvia.example\", \"display_name\":"
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "198.51.100.210",
+        "desde": "2026-10-11T14:11:59Z",
+        "hasta": "2026-10-13T14:11:59Z"
+      },
+      "origen": "auto",
+      "ms": 15,
+      "chars": 601,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 1, \"items\": [{\"alert_id\": \"ALR-20261012-011829\", \"created_at\": \"2026-10-12T14:11:59.000Z\", \"rule_id\": \"UC-EDR-005\", \"rule_name\": \"Herramienta de acceso remoto no autorizada\", \"severity\": \"medium\", \"entities\": {\"users\": [{\"upn\": \"andrea.molina2@tarvia.example\", \"display_name\":"
+    },
+    {
+      "tool": "buscar_cambios",
+      "args": {
+        "texto": "LT-T07-02"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 2,
+      "error": null,
+      "preview": "[]"
+    },
+    {
+      "tool": "buscar_cambios",
+      "args": {
+        "texto": "andrea.molina2"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 2,
+      "error": null,
+      "preview": "[]"
+    }
+  ],
+  "razonamiento": [],
+  "uso": {
+    "input_tokens": 9749,
+    "output_tokens": 804,
+    "llamadas_modelo": 1
+  },
+  "modelo": "gemini/gemini-flash-lite-latest",
+  "triado_en": "2026-11-07T19:39:37.871116+00:00",
+  "firma": null,
+  "heredado_de": null,
+  "entrada_severidad": {
+    "activo_mas_critico": "LT-T07-02",
+    "criticidad": "Media",
+    "ajuste": "+1",
+    "motivo_ajuste": "Ejecución confirmada de AnyDesk con sesión remota activa y actividad posterior no autorizada.",
+    "patron_generalizable": false
+  }
+}

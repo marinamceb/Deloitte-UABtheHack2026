@@ -2,6 +2,7 @@
 
 Nivel 1 · Triaje básico: entender, enriquecer, veredicto, severidad y recomendación (cerrar o escalar)
     triaje.py            orquesta el triaje de una alerta (integra también los niveles 2 y 4)
+    cola.py              cola priorizada: severidad estimada sin LLM (matriz + inventario) y plazo del SLA
     motores.py           conexión con el LLM (Gemini/compatibles OpenAI o Claude)
     prompts.py           prompt de sistema (política + empresa) y contexto de la regla (catálogo + runbook)
     modelos.py           esquema de la salida del modelo (TicketTriaje)
@@ -22,7 +23,10 @@ Nivel 2 · Triaje con criterio: correlación, matriz con la criticidad real, des
     (tests/evaluacion/   casos verificados y script que mide aciertos: veredicto, severidad, escalado, agrupación)
     politica.py          un benign_true_positive debe citar qué lo autoriza  (_exigir_argumento)
 
-Nivel 3 · Investigación: (no implementado)
+Nivel 3 · Investigación: (en curso; plan en propuesta.txt: rastreo por saltos, cronología, alcance, relación con
+    otros incidentes, informe_incidente.schema.json)
+    indice.py            [infraestructura] copia local de los logs descargada POR LA API e índice de entidades
+                         (SQLite en salidas/); misma búsqueda exacta que la API, en todas las fuentes y en ms
 
 Nivel 4 · Respuesta: proponer contención y ejecutarla con aprobación humana
     contencion.py        aprobación humana y ejecución en la API simulada
@@ -31,5 +35,5 @@ Nivel 4 · Respuesta: proponer contención y ejecutarla con aprobación humana
 
 Común: comun.py (fechas en Europe/Madrid, inventario, entidades de una alerta, formato de hallazgos)
 
-Pruebas: tests/nivel1, tests/nivel2 (pytest) y tests/evaluacion (aciertos sobre casos verificados).
+Pruebas: tests/nivel1, tests/nivel2, tests/nivel3 (pytest) y tests/evaluacion (aciertos sobre casos verificados).
 """

