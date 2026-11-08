@@ -1,0 +1,5 @@
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+tests/evaluacion/resultado.json
+probar_llm.py

@@ -80,7 +80,7 @@ env/
 .pytest_cache/
 
 # Resultado generado por tests/evaluacion/evaluar.py
-tests/evaluacion/resultado.json
+backend/tests/evaluacion/resultado.json
 
 # Índice local de logs (agent.py --construir-indice)
 salidas/indice_logs.sqlite*

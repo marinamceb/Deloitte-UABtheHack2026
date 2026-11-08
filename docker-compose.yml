@@ -1,0 +1,54 @@
+# Consola del SOC de Tarvia: API simulada (original) + backend (agente y API web) + frontend (nginx).
+#   docker compose up --build                       → http://localhost:8080  (API simulada: http://localhost:8000/docs)
+#   Puertos publicados: WEB_PORT (8080) y SOC_API_PORT (8000), p. ej. si ya hay una API simulada local en el 8000.
+#   docker compose run --rm backend python agent.py --construir-indice      (una vez: índice de logs del nivel 3)
+#   docker compose run --rm backend python agent.py --ver-cola 10            (cualquier orden del CLI)
+#   docker compose run --rm backend python -m pytest -q                      (tests)
+# Secretos (GEMINI_API_KEY, WEB_SECRETO...) en .env, que nunca entra en las imágenes.
+name: tarvia-soc
+
+services:
+  soc-api:
+    build:
+      context: .
+      dockerfile: docker/soc-api.Dockerfile
+    volumes:
+      # DTT-UAB-The-Hack-main no se modifica: todo en solo lectura salvo el registro de contención (volumen propio)
+      - ./DTT-UAB-The-Hack-main/01_contexto:/dataset/01_contexto:ro
+      - ./DTT-UAB-The-Hack-main/02_inventario:/dataset/02_inventario:ro
+      - ./DTT-UAB-The-Hack-main/03_alertas:/dataset/03_alertas:ro
+      - ./DTT-UAB-The-Hack-main/04_logs:/dataset/04_logs:ro
+      - ./DTT-UAB-The-Hack-main/05_inteligencia:/dataset/05_inteligencia:ro
+      - registro-contencion:/dataset/06_herramientas
+    ports:
+      - "127.0.0.1:${SOC_API_PORT:-8000}:8000"   # solo para consultar /docs; el backend la usa por la red interna
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    user: "${UID:-1000}:${GID:-1000}"   # el de quien ejecuta, para poder escribir en ./salidas
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SOC_API_URL: http://soc-api:8000
+    volumes:
+      - ./DTT-UAB-The-Hack-main:/dataset:ro
+      - ./salidas:/datos/salidas
+    depends_on:
+      soc-api:
+        condition: service_healthy
+    restart: unless-stopped
+    # sin «ports»: solo es accesible a través del frontend (nginx)
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  registro-contencion:
